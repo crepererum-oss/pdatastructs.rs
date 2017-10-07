@@ -17,6 +17,9 @@ pub trait Counter: Copy + Ord + Sized {
 
     /// Return a counter representing one.
     fn one() -> Self;
+
+    /// Checks whether the counter is zero.
+    fn is_zero(&self) -> bool;
 }
 
 
@@ -36,6 +39,11 @@ macro_rules! impl_counter {
             #[inline]
             fn one() -> Self {
                 1
+            }
+
+            #[inline]
+            fn is_zero(&self) -> bool {
+                *self == 0
             }
         }
     }
@@ -89,6 +97,11 @@ where
     /// Get number of rows of internal counter table.
     pub fn d(&self) -> usize {
         self.d
+    }
+
+    /// Check whether the CountMinSketch is empty (i.e. no elements seen yet).
+    pub fn is_empty(&self) -> bool {
+        self.table.iter().all(|x| x.is_zero())
     }
 
     /// Add one to the counter of the given element.
@@ -147,6 +160,7 @@ mod tests {
     fn empty() {
         let cms = CountMinSketch::<usize>::with_params(10, 10);
         assert_eq!(cms.query_point(&1), 0);
+        assert!(cms.is_empty());
     }
 
     #[test]
@@ -186,8 +200,10 @@ mod tests {
 
         cms.add(&1);
         assert_eq!(cms.query_point(&1), 1);
+        assert!(!cms.is_empty());
 
         cms.clear();
         assert_eq!(cms.query_point(&1), 0);
+        assert!(cms.is_empty());
     }
 }
