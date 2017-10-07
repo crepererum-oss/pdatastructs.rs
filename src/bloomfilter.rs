@@ -1,4 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
 use bit_vec::BitVec;
@@ -155,6 +156,14 @@ impl BloomFilter {
     }
 }
 
+
+impl fmt::Debug for BloomFilter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BloomFilter {{ m: {}, k: {} }}", self.bv.len(), self.k)
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::BloomFilter;
@@ -241,5 +250,11 @@ mod tests {
 
         bf.add(&2);
         assert!(bf.guess_n() == 2);
+    }
+
+    #[test]
+    fn debug() {
+        let bf = BloomFilter::with_params(100, 2);
+        assert!(format!("{:?}", bf) == "BloomFilter { m: 100, k: 2 }");
     }
 }
