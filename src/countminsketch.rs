@@ -33,7 +33,7 @@ impl CountMinSketch {
     {
         for (i, pos) in HashIter::new(self.w, self.d, obj).enumerate() {
             let x = i * self.w + pos;
-            self.table[x] += n;
+            self.table[x] = self.table[x].checked_add(n).unwrap();
         }
     }
 
