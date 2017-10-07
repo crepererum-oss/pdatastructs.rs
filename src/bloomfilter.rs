@@ -53,6 +53,7 @@ where
 }
 
 
+/// Simple implementation of a [BloomFilter](https://en.wikipedia.org/wiki/Bloom_filter)
 pub struct BloomFilter {
     bv: BitVec,
     k: usize,
@@ -60,6 +61,10 @@ pub struct BloomFilter {
 
 
 impl BloomFilter {
+    /// Create new, empty BloomFilter with internal parameters.
+    ///
+    /// - `k` is the number of hash functions
+    /// - `m` is the number of bits used to store state
     pub fn with_params(m: usize, k: usize) -> BloomFilter {
         BloomFilter {
             bv: BitVec::from_elem(m, false),
@@ -67,6 +72,13 @@ impl BloomFilter {
         }
     }
 
+    /// Create new, empty BloomFilter with given properties.
+    ///
+    /// - `n` number of unique elements the BloomFilter is expected to hold, must be `> 0`
+    /// - `p` false positive property when querying the BloomFilter after adding `n` unique
+    ///   elements, must be `> 0` and `< 1`
+    ///
+    /// Panics if the parameters are not in range.
     pub fn with_properties(n: usize, p: f64) -> BloomFilter {
         assert!(n > 0);
         assert!(p > 0.);
@@ -79,14 +91,20 @@ impl BloomFilter {
         BloomFilter::with_params(m, k)
     }
 
+    /// Get `k` (number of hash functions).
     pub fn get_k(&self) -> usize {
         self.k
     }
 
+    /// Get `m` (number of stored bits).
     pub fn get_m(&self) -> usize {
         self.bv.len()
     }
 
+    /// Add new element to the BloomFilter.
+    ///
+    /// If the same element is added multiple times or if an element results in the same hash
+    /// signature, this method does not have any effect.
     pub fn add<T>(&mut self, obj: &T)
     where
         T: Hash,
@@ -96,6 +114,7 @@ impl BloomFilter {
         }
     }
 
+    /// Guess if the given element was added to the BloomFilter.
     pub fn query<T>(&self, obj: &T) -> bool
     where
         T: Hash,
@@ -108,16 +127,24 @@ impl BloomFilter {
         true
     }
 
+    /// Clear state of the BloomFilter, so that it behaves like a fresh one.
     pub fn clear(&mut self) {
         self.bv.clear()
     }
 
+    /// Add the entire content of another bloomfilter to this BloomFilter.
+    ///
+    /// The result is the same as adding all elements added to `other` to `self` in the first
+    /// place.
+    ///
+    /// Panics if `k` and `m` of the two BloomFilters are not identical.
     pub fn union(&mut self, other: &BloomFilter) {
         assert!(self.k == other.k);
         assert!(self.bv.len() == other.bv.len());
         self.bv.union(&other.bv);
     }
 
+    /// Guess the number of unique elements added to the BloomFilter.
     pub fn guess_n(&self) -> usize {
         let m = self.bv.len() as f64;
         let k = self.k as f64;
