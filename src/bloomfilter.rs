@@ -134,6 +134,11 @@ impl BloomFilter {
         self.bv.clear()
     }
 
+    /// Check whether the BloomFilter is empty.
+    pub fn is_empty(&self) -> bool {
+        !self.bv.iter().any(|x| x)
+    }
+
     /// Add the entire content of another bloomfilter to this BloomFilter.
     ///
     /// The result is the same as adding all elements added to `other` to `self` in the first
@@ -197,6 +202,18 @@ mod tests {
         bf.add(&1);
         bf.clear();
         assert!(!bf.query(&1));
+    }
+
+    #[test]
+    fn is_empty() {
+        let mut bf = BloomFilter::with_params(100, 2);
+        assert!(bf.is_empty());
+
+        bf.add(&1);
+        assert!(!bf.is_empty());
+
+        bf.clear();
+        assert!(bf.is_empty());
     }
 
     #[test]
