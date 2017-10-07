@@ -1,5 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
+use std::hash::{BuildHasherDefault, Hash};
 
 use utils::HashIter;
 
@@ -32,7 +32,8 @@ impl CountMinSketch {
     where
         T: Hash,
     {
-        for (i, pos) in HashIter::new(self.w, self.d, obj, DefaultHasher::new()).enumerate() {
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
+        for (i, pos) in HashIter::new(self.w, self.d, obj, bh).enumerate() {
             let x = i * self.w + pos;
             self.table[x] = self.table[x].checked_add(n).unwrap();
         }
@@ -42,7 +43,8 @@ impl CountMinSketch {
     where
         T: Hash,
     {
-        HashIter::new(self.w, self.d, obj, DefaultHasher::new())
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
+        HashIter::new(self.w, self.d, obj, bh)
             .enumerate()
             .map(|(i, pos)| i * self.w + pos)
             .map(|x| self.table[x])

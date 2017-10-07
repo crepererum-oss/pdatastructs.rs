@@ -1,46 +1,46 @@
-use std::hash::{Hash, Hasher};
+use std::hash::{BuildHasher, Hash, Hasher};
 
 
-pub struct HashIter<'a, T, H>
+pub struct HashIter<'a, T, B>
 where
     T: 'a,
-    H: Clone + Hasher,
+    B: BuildHasher,
 {
     m: usize,
     k: usize,
     i: usize,
     obj: &'a T,
-    hasher: H,
+    buildhasher: B,
 }
 
 
-impl<'a, T, H> HashIter<'a, T, H>
+impl<'a, T, B> HashIter<'a, T, B>
 where
     T: 'a,
-    H: Clone + Hasher,
+    B: BuildHasher,
 {
-    pub fn new(m: usize, k: usize, obj: &'a T, hasher: H) -> HashIter<'a, T, H> {
+    pub fn new(m: usize, k: usize, obj: &'a T, buildhasher: B) -> HashIter<'a, T, B> {
         HashIter {
             m: m,
             k: k,
             i: 0,
             obj: obj,
-            hasher: hasher,
+            buildhasher: buildhasher,
         }
     }
 }
 
 
-impl<'a, T, H> Iterator for HashIter<'a, T, H>
+impl<'a, T, B> Iterator for HashIter<'a, T, B>
 where
     T: 'a + Hash,
-    H: Clone + Hasher,
+    B: BuildHasher,
 {
     type Item = usize;
 
     fn next(&mut self) -> Option<usize> {
         if self.i < self.k {
-            let mut hasher = self.hasher.clone();
+            let mut hasher = self.buildhasher.build_hasher();
             hasher.write_usize(self.i);
             self.obj.hash(&mut hasher);
             let x = (hasher.finish() as usize) % self.m;

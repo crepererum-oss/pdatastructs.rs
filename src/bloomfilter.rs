@@ -1,6 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::Hash;
+use std::hash::{BuildHasherDefault, Hash};
 
 use bit_vec::BitVec;
 
@@ -64,7 +64,8 @@ impl BloomFilter {
     where
         T: Hash,
     {
-        for pos in HashIter::new(self.bv.len(), self.k, obj, DefaultHasher::new()) {
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
+        for pos in HashIter::new(self.bv.len(), self.k, obj, bh) {
             self.bv.set(pos, true);
         }
     }
@@ -74,7 +75,8 @@ impl BloomFilter {
     where
         T: Hash,
     {
-        for pos in HashIter::new(self.bv.len(), self.k, obj, DefaultHasher::new()) {
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
+        for pos in HashIter::new(self.bv.len(), self.k, obj, bh) {
             if !self.bv.get(pos).unwrap() {
                 return false;
             }
