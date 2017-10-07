@@ -146,8 +146,9 @@ impl BloomFilter {
     ///
     /// Panics if `k` and `m` of the two BloomFilters are not identical.
     pub fn union(&mut self, other: &BloomFilter) {
-        assert!(self.k == other.k);
-        assert!(self.bv.len() == other.bv.len());
+        assert_eq!(self.k, other.k);
+        assert_eq!(self.bv.len(), other.bv.len());
+
         self.bv.union(&other.bv);
     }
 
