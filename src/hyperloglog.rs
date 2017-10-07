@@ -89,6 +89,23 @@ impl HyperLogLog {
         e_star as usize
     }
 
+    /// Merge w/ another HyperLogLog.
+    ///
+    /// This HyperLogLog will then have the same state as if all elements seen by `other` where
+    /// directly added to `self`.
+    ///
+    /// Panics when `b` parameter of `self` and `other` do not match.
+    pub fn merge(&mut self, other: &HyperLogLog) {
+        assert_eq!(self.b, other.b);
+
+        self.registers = self.registers
+            .iter()
+            .zip(other.registers.iter())
+            .map(|x| cmp::max(x.0, x.1))
+            .cloned()
+            .collect();
+    }
+
     /// Empties the HyperLogLog.
     pub fn clear(&mut self) {
         self.registers = vec![0; self.registers.len()];
@@ -237,6 +254,26 @@ mod tests {
         let c1b = hll1.count();
         assert_ne!(c1b, c1a);
         assert_eq!(hll2.count(), c1a);
+    }
+
+    #[test]
+    fn merge() {
+        let mut hll1 = HyperLogLog::new(12);
+        let mut hll2 = HyperLogLog::new(12);
+        let mut hll = HyperLogLog::new(12);
+        for i in 0..500 {
+            hll.add(&i);
+            hll1.add(&i);
+        }
+        for i in 501..1000 {
+            hll.add(&i);
+            hll2.add(&i);
+        }
+        assert_ne!(hll.count(), hll1.count());
+        assert_ne!(hll.count(), hll2.count());
+
+        hll1.merge(&hll2);
+        assert_eq!(hll.count(), hll1.count());
     }
 
     #[test]
