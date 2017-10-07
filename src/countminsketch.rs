@@ -1,11 +1,12 @@
 use std::collections::hash_map::DefaultHasher;
+use std::fmt;
 use std::hash::{BuildHasherDefault, Hash};
 
 use utils::HashIter;
 
 
 /// Abstract, but safe counter.
-pub trait Counter: Copy + Ord + Sized {
+pub trait Counter: Copy + fmt::Debug + Ord + Sized {
     /// Add self to another counter.
     ///
     /// Returns `Some(Self)` when the addition was successfull (i.e. no overflow occured) and
@@ -163,6 +164,13 @@ where
 }
 
 
+impl fmt::Debug for CountMinSketch {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "CountMinSketch {{ w: {}, d: {} }}", self.w, self.d)
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::CountMinSketch;
@@ -279,5 +287,11 @@ mod tests {
         assert_eq!(cms1.query_point(&2), 0);
         assert_eq!(cms2.query_point(&1), 1);
         assert_eq!(cms2.query_point(&2), 0);
+    }
+
+    #[test]
+    fn debug() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        assert_eq!(format!("{:?}", cms), "CountMinSketch { w: 10, d: 20 }");
     }
 }
