@@ -62,6 +62,7 @@ impl_counter!(u8);
 ///
 /// The type parameter `C` sets the type of the counter in the internal table and can be used to
 /// reduce memory consumption when low counts are expected.
+#[derive(Clone)]
 pub struct CountMinSketch<C = usize>
 where
     C: Counter,
@@ -259,5 +260,24 @@ mod tests {
         cms.clear();
         assert_eq!(cms.query_point(&1), 0);
         assert!(cms.is_empty());
+    }
+
+    #[test]
+    fn clone() {
+        let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
+
+        cms1.add(&1);
+        assert_eq!(cms1.query_point(&1), 1);
+        assert_eq!(cms1.query_point(&2), 0);
+
+        let cms2 = cms1.clone();
+        assert_eq!(cms2.query_point(&1), 1);
+        assert_eq!(cms2.query_point(&2), 0);
+
+        cms1.add(&1);
+        assert_eq!(cms1.query_point(&1), 2);
+        assert_eq!(cms1.query_point(&2), 0);
+        assert_eq!(cms2.query_point(&1), 1);
+        assert_eq!(cms2.query_point(&2), 0);
     }
 }
