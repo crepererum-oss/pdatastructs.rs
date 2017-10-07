@@ -138,6 +138,23 @@ where
             .unwrap()
     }
 
+    /// Merge self with another CountMinSketch.
+    ///
+    /// After this operation `self` will be in the same state as when it would have seen all
+    /// elements from `self` and `other`.
+    ///
+    /// Panics when `d` and `w` from `self` and `other` differ.
+    pub fn merge(&mut self, other: &CountMinSketch<C>) {
+        assert_eq!(self.d, other.d);
+        assert_eq!(self.w, other.w);
+
+        self.table = self.table
+            .iter()
+            .zip(other.table.iter())
+            .map(|x| x.0.checked_add(*x.1).unwrap())
+            .collect();
+    }
+
     /// Clear internal counters to a fresh state (i.e. no objects seen).
     pub fn clear(&mut self) {
         self.table = vec![C::zero(); self.w.checked_mul(self.d).unwrap()];
@@ -183,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn add_2_1() {
+    fn add_2_1a() {
         let mut cms = CountMinSketch::<usize>::with_params(10, 10);
 
         cms.add(&1);
@@ -192,6 +209,43 @@ mod tests {
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 1);
         assert_eq!(cms.query_point(&3), 0);
+    }
+
+    #[test]
+    fn add_2_1b() {
+        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+
+        cms.add_n(&1, 2);
+        cms.add(&2);
+        assert_eq!(cms.query_point(&1), 2);
+        assert_eq!(cms.query_point(&2), 1);
+        assert_eq!(cms.query_point(&3), 0);
+    }
+
+    #[test]
+    fn merge() {
+        let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms2 = CountMinSketch::<usize>::with_params(10, 10);
+
+        cms1.add_n(&1, 1);
+        cms1.add_n(&2, 2);
+        assert_eq!(cms1.query_point(&1), 1);
+        assert_eq!(cms1.query_point(&2), 2);
+        assert_eq!(cms1.query_point(&3), 0);
+        assert_eq!(cms1.query_point(&4), 0);
+
+        cms2.add_n(&2, 20);
+        cms2.add_n(&3, 30);
+        assert_eq!(cms2.query_point(&1), 0);
+        assert_eq!(cms2.query_point(&2), 20);
+        assert_eq!(cms2.query_point(&3), 30);
+        assert_eq!(cms2.query_point(&4), 0);
+
+        cms1.merge(&cms2);
+        assert_eq!(cms1.query_point(&1), 1);
+        assert_eq!(cms1.query_point(&2), 22);
+        assert_eq!(cms1.query_point(&3), 30);
+        assert_eq!(cms1.query_point(&4), 0);
     }
 
     #[test]
