@@ -31,6 +31,16 @@ impl HyperLogLog {
         }
     }
 
+    /// Get number of bits used for register selection.
+    pub fn get_b(&self) -> usize {
+        self.b
+    }
+
+    /// Get number of registers.
+    pub fn get_m(&self) -> usize {
+        self.registers.len()
+    }
+
     /// Adds an element to the HyperLogLog.
     pub fn add<T>(&mut self, obj: &T)
     where
@@ -128,6 +138,13 @@ impl fmt::Debug for HyperLogLog {
 #[cfg(test)]
 mod tests {
     use super::HyperLogLog;
+
+    #[test]
+    fn getter() {
+        let hll = HyperLogLog::new(8);
+        assert_eq!(hll.get_b(), 8);
+        assert_eq!(hll.get_m(), 1 << 8);
+    }
 
     #[test]
     fn empty() {
