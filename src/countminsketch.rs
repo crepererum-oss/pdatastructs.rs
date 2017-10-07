@@ -81,6 +81,16 @@ where
         }
     }
 
+    /// Get number of columns of internal counter table.
+    pub fn w(&self) -> usize {
+        self.w
+    }
+
+    /// Get number of rows of internal counter table.
+    pub fn d(&self) -> usize {
+        self.d
+    }
+
     /// Add one to the counter of the given element.
     pub fn add<T>(&mut self, obj: &T)
     where
@@ -120,6 +130,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::CountMinSketch;
+
+    #[test]
+    fn getter() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        assert_eq!(cms.w(), 10);
+        assert_eq!(cms.d(), 20);
+    }
 
     #[test]
     fn empty() {
