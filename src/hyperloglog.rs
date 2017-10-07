@@ -3,6 +3,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 
+/// A simple implementation of a [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 pub struct HyperLogLog {
     registers: Vec<u64>,
     b: usize,
@@ -10,6 +11,12 @@ pub struct HyperLogLog {
 
 
 impl HyperLogLog {
+    /// Creates a new, empty HyperLogLog.
+    ///
+    /// - `b` number of bits used for register selection, number of registers within the
+    ///   HyperLogLog will be `2^b`. `b` must be in `[4, 16]`
+    ///
+    /// Panics when `b` is out of bounds.
     pub fn new(b: usize) -> HyperLogLog {
         assert!(b >= 4);
         assert!(b <= 16);
@@ -22,6 +29,7 @@ impl HyperLogLog {
         }
     }
 
+    /// Adds an element to the HyperLogLog.
     pub fn add<T>(&mut self, obj: &T)
     where
         T: Hash,
@@ -38,6 +46,7 @@ impl HyperLogLog {
         self.registers[j as usize] = cmp::max(m_old, p as u64);
     }
 
+    /// Guess the number of unique elements seen by the HyperLogLog.
     pub fn count(&self) -> usize {
         let m = self.registers.len() as f64;
 
