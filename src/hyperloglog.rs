@@ -1,5 +1,6 @@
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
 
@@ -95,6 +96,13 @@ impl HyperLogLog {
     /// Checks whether the HyperLogLog has never seen an element.
     pub fn is_empty(&self) -> bool {
         self.registers.iter().all(|&x| x == 0)
+    }
+}
+
+
+impl fmt::Debug for HyperLogLog {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "HyperLogLog {{ b: {} }}", self.b)
     }
 }
 
@@ -209,5 +217,11 @@ mod tests {
         hll.clear();
         assert_eq!(hll.count(), 0);
         assert!(hll.is_empty());
+    }
+
+    #[test]
+    fn debug() {
+        let hll = HyperLogLog::new(12);
+        assert_eq!(format!("{:?}", hll), "HyperLogLog { b: 12 }");
     }
 }
