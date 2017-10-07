@@ -4,16 +4,60 @@ use std::hash::{BuildHasherDefault, Hash};
 use utils::HashIter;
 
 
-pub struct CountMinSketch {
-    table: Vec<usize>,
+pub trait Counter: Copy + Ord + Sized {
+    fn checked_add(self, other: Self) -> Option<Self>;
+
+    fn zero() -> Self;
+
+    fn one() -> Self;
+}
+
+
+macro_rules! impl_counter {
+    ($t:ty) => {
+        impl Counter for $t {
+            #[inline]
+            fn checked_add(self, other: Self) -> Option<Self> {
+                self.checked_add(other)
+            }
+
+            #[inline]
+            fn zero() -> Self {
+                0
+            }
+
+            #[inline]
+            fn one() -> Self {
+                1
+            }
+        }
+    }
+}
+
+
+impl_counter!(usize);
+impl_counter!(u64);
+impl_counter!(u32);
+impl_counter!(u16);
+impl_counter!(u8);
+
+
+pub struct CountMinSketch<C>
+where
+    C: Counter,
+{
+    table: Vec<C>,
     w: usize,
     d: usize,
 }
 
 
-impl CountMinSketch {
-    pub fn with_params(w: usize, d: usize) -> CountMinSketch {
-        let table = vec![0; w.checked_mul(d).unwrap()];
+impl<C> CountMinSketch<C>
+where
+    C: Counter,
+{
+    pub fn with_params(w: usize, d: usize) -> CountMinSketch<C> {
+        let table = vec![C::zero(); w.checked_mul(d).unwrap()];
         CountMinSketch {
             table: table,
             w: w,
@@ -25,10 +69,10 @@ impl CountMinSketch {
     where
         T: Hash,
     {
-        self.add_n(&obj, 1)
+        self.add_n(&obj, C::one())
     }
 
-    pub fn add_n<T>(&mut self, obj: &T, n: usize)
+    pub fn add_n<T>(&mut self, obj: &T, n: C)
     where
         T: Hash,
     {
@@ -39,7 +83,7 @@ impl CountMinSketch {
         }
     }
 
-    pub fn query_point<T>(&self, obj: &T) -> usize
+    pub fn query_point<T>(&self, obj: &T) -> C
     where
         T: Hash,
     {
@@ -60,13 +104,13 @@ mod tests {
 
     #[test]
     fn empty() {
-        let cms = CountMinSketch::with_params(10, 10);
+        let cms = CountMinSketch::<usize>::with_params(10, 10);
         assert_eq!(cms.query_point(&1), 0);
     }
 
     #[test]
     fn add_1() {
-        let mut cms = CountMinSketch::with_params(10, 10);
+        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
 
         cms.add(&1);
         assert_eq!(cms.query_point(&1), 1);
@@ -75,7 +119,7 @@ mod tests {
 
     #[test]
     fn add_2() {
-        let mut cms = CountMinSketch::with_params(10, 10);
+        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
 
         cms.add(&1);
         cms.add(&1);
@@ -85,7 +129,7 @@ mod tests {
 
     #[test]
     fn add_2_1() {
-        let mut cms = CountMinSketch::with_params(10, 10);
+        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
 
         cms.add(&1);
         cms.add(&2);
