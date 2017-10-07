@@ -22,7 +22,7 @@ impl HyperLogLog {
         assert!(b <= 16);
 
         let m = (1 as usize) << b;
-        let registers = (0..m).map(|_| 0).collect();
+        let registers = vec![0; m];
         HyperLogLog {
             registers: registers,
             b: b,
@@ -85,6 +85,11 @@ impl HyperLogLog {
         };
 
         e_star as usize
+    }
+
+    /// Empties the HyperLogLog.
+    pub fn clear(&mut self) {
+        self.registers = vec![0; self.registers.len()];
     }
 }
 
@@ -178,5 +183,15 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 1000226);
+    }
+
+    #[test]
+    fn clear() {
+        let mut hll = HyperLogLog::new(8);
+        for i in 0..1000 {
+            hll.add(&i);
+        }
+        hll.clear();
+        assert_eq!(hll.count(), 0);
     }
 }
