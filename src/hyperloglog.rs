@@ -5,6 +5,7 @@ use std::hash::{Hash, Hasher};
 
 
 /// A simple implementation of a [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
+#[derive(Clone)]
 pub struct HyperLogLog {
     registers: Vec<u8>,
     b: usize,
@@ -217,6 +218,25 @@ mod tests {
         hll.clear();
         assert_eq!(hll.count(), 0);
         assert!(hll.is_empty());
+    }
+
+    #[test]
+    fn clone() {
+        let mut hll1 = HyperLogLog::new(12);
+        for i in 0..500 {
+            hll1.add(&i);
+        }
+        let c1a = hll1.count();
+
+        let hll2 = hll1.clone();
+        assert_eq!(hll2.count(), c1a);
+
+        for i in 501..1000 {
+            hll1.add(&i);
+        }
+        let c1b = hll1.count();
+        assert_ne!(c1b, c1a);
+        assert_eq!(hll2.count(), c1a);
     }
 
     #[test]
