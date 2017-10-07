@@ -1,7 +1,13 @@
 [package]
 name = "pdatastructs"
 version = "0.1.0"
-authors = ["tom"]
+authors = ["Marco Neumann <marco@crepererum.net>"]
+license = "MIT"
+keywords = ["bloomfilter", "hyperloglog"]
+categories = ["data-structures"]
+description = "Simple probabilistic data structures"
+repository = "https://github.com/crepererum/pdatastructs.rs"
+readme = "README.md"
 
 [dependencies]
 bit-vec = "0.4"
