@@ -47,12 +47,12 @@ impl BloomFilter {
     }
 
     /// Get `k` (number of hash functions).
-    pub fn get_k(&self) -> usize {
+    pub fn k(&self) -> usize {
         self.k
     }
 
     /// Get `m` (number of stored bits).
-    pub fn get_m(&self) -> usize {
+    pub fn m(&self) -> usize {
         self.bv.len()
     }
 
@@ -132,8 +132,8 @@ mod tests {
     #[test]
     fn getter() {
         let bf = BloomFilter::with_params(100, 2);
-        assert_eq!(bf.get_k(), 2);
-        assert_eq!(bf.get_m(), 100);
+        assert_eq!(bf.k(), 2);
+        assert_eq!(bf.m(), 100);
     }
 
     #[test]
@@ -206,8 +206,8 @@ mod tests {
     #[test]
     fn with_properties() {
         let bf = BloomFilter::with_properties(1000, 0.1);
-        assert_eq!(bf.get_k(), 3);
-        assert_eq!(bf.get_m(), 4792);
+        assert_eq!(bf.k(), 3);
+        assert_eq!(bf.m(), 4792);
     }
 
     #[test]
