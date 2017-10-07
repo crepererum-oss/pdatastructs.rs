@@ -1,0 +1,7 @@
+[package]
+name = "pdatastructs"
+version = "0.1.0"
+authors = ["tom"]
+
+[dependencies]
+bit-vec = "0.4"
