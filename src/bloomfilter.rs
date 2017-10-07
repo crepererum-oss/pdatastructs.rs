@@ -1,3 +1,4 @@
+use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::Hash;
 
@@ -63,7 +64,7 @@ impl BloomFilter {
     where
         T: Hash,
     {
-        for pos in HashIter::new(self.bv.len(), self.k, obj) {
+        for pos in HashIter::new(self.bv.len(), self.k, obj, DefaultHasher::new()) {
             self.bv.set(pos, true);
         }
     }
@@ -73,7 +74,7 @@ impl BloomFilter {
     where
         T: Hash,
     {
-        for pos in HashIter::new(self.bv.len(), self.k, obj) {
+        for pos in HashIter::new(self.bv.len(), self.k, obj, DefaultHasher::new()) {
             if !self.bv.get(pos).unwrap() {
                 return false;
             }
