@@ -124,6 +124,11 @@ where
             .min()
             .unwrap()
     }
+
+    /// Clear internal counters to a fresh state (i.e. no objects seen).
+    pub fn clear(&mut self) {
+        self.table = vec![C::zero(); self.w.checked_mul(self.d).unwrap()];
+    }
 }
 
 
@@ -173,5 +178,16 @@ mod tests {
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 1);
         assert_eq!(cms.query_point(&3), 0);
+    }
+
+    #[test]
+    fn clear() {
+        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+
+        cms.add(&1);
+        assert_eq!(cms.query_point(&1), 1);
+
+        cms.clear();
+        assert_eq!(cms.query_point(&1), 0);
     }
 }
