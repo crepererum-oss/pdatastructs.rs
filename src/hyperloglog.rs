@@ -91,6 +91,11 @@ impl HyperLogLog {
     pub fn clear(&mut self) {
         self.registers = vec![0; self.registers.len()];
     }
+
+    /// Checks whether the HyperLogLog has never seen an element.
+    pub fn is_empty(&self) -> bool {
+        self.registers.iter().all(|&x| x == 0)
+    }
 }
 
 
@@ -102,6 +107,7 @@ mod tests {
     fn empty() {
         let hll = HyperLogLog::new(8);
         assert_eq!(hll.count(), 0);
+        assert!(hll.is_empty());
     }
 
     #[test]
@@ -111,6 +117,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 571);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -120,6 +127,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 966);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -129,6 +137,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 984);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -138,6 +147,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 998);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -147,6 +157,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 10196);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -156,6 +167,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 10303);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -165,6 +177,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 10055);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -174,6 +187,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 100551);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -183,6 +197,7 @@ mod tests {
             hll.add(&i);
         }
         assert_eq!(hll.count(), 1000226);
+        assert!(!hll.is_empty());
     }
 
     #[test]
@@ -193,5 +208,6 @@ mod tests {
         }
         hll.clear();
         assert_eq!(hll.count(), 0);
+        assert!(hll.is_empty());
     }
 }
