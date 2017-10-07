@@ -54,6 +54,7 @@ where
 
 
 /// Simple implementation of a [BloomFilter](https://en.wikipedia.org/wiki/Bloom_filter)
+#[derive(Clone)]
 pub struct BloomFilter {
     bv: BitVec,
     k: usize,
@@ -187,6 +188,17 @@ mod tests {
         bf.add(&1);
         bf.clear();
         assert!(!bf.query(&1));
+    }
+
+    #[test]
+    fn clone() {
+        let mut bf1 = BloomFilter::with_params(100, 2);
+        bf1.add(&1);
+
+        let bf2 = bf1.clone();
+        bf1.add(&2);
+        assert!(bf2.query(&1));
+        assert!(!bf2.query(&2));
     }
 
     #[test]
