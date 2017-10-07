@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 
 /// A simple implementation of a [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 pub struct HyperLogLog {
-    registers: Vec<u64>,
+    registers: Vec<u8>,
     b: usize,
 }
 
@@ -43,7 +43,7 @@ impl HyperLogLog {
         let p = w.leading_zeros() + 1 - (self.b as u32);
 
         let m_old = self.registers[j as usize];
-        self.registers[j as usize] = cmp::max(m_old, p as u64);
+        self.registers[j as usize] = cmp::max(m_old, p as u8);
     }
 
     /// Guess the number of unique elements seen by the HyperLogLog.
