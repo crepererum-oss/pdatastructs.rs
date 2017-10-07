@@ -4,11 +4,18 @@ use std::hash::{BuildHasherDefault, Hash};
 use utils::HashIter;
 
 
+/// Abstract, but safe counter.
 pub trait Counter: Copy + Ord + Sized {
+    /// Add self to another counter.
+    ///
+    /// Returns `Some(Self)` when the addition was successfull (i.e. no overflow occured) and
+    /// `None` in case of an error.
     fn checked_add(self, other: Self) -> Option<Self>;
 
+    /// Return a counter representing zero.
     fn zero() -> Self;
 
+    /// Return a counter representing one.
     fn one() -> Self;
 }
 
@@ -42,7 +49,12 @@ impl_counter!(u16);
 impl_counter!(u8);
 
 
-pub struct CountMinSketch<C>
+/// Simple implementation of a
+/// [Count-min sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
+///
+/// The type parameter `C` sets the type of the counter in the internal table and can be used to
+/// reduce memory consumption when low counts are expected.
+pub struct CountMinSketch<C = usize>
 where
     C: Counter,
 {
@@ -56,6 +68,10 @@ impl<C> CountMinSketch<C>
 where
     C: Counter,
 {
+    /// Create new CountMinSketch based on table size.
+    ///
+    /// - `w` sets the number of columns
+    /// - `d` sets the number of rows
     pub fn with_params(w: usize, d: usize) -> CountMinSketch<C> {
         let table = vec![C::zero(); w.checked_mul(d).unwrap()];
         CountMinSketch {
@@ -65,6 +81,7 @@ where
         }
     }
 
+    /// Add one to the counter of the given element.
     pub fn add<T>(&mut self, obj: &T)
     where
         T: Hash,
@@ -72,6 +89,7 @@ where
         self.add_n(&obj, C::one())
     }
 
+    /// Add `n` to the counter of the given element.
     pub fn add_n<T>(&mut self, obj: &T, n: C)
     where
         T: Hash,
@@ -83,6 +101,7 @@ where
         }
     }
 
+    /// Runs a point query, i.e. a query for the count of a single object.
     pub fn query_point<T>(&self, obj: &T) -> C
     where
         T: Hash,
