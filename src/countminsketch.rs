@@ -1,4 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
+use std::f64;
 use std::fmt;
 use std::hash::{BuildHasherDefault, Hash};
 
@@ -91,6 +92,30 @@ where
         }
     }
 
+    /// Create new CountMinSketch with the following properties for a point query:
+    ///
+    /// - `a` is the real count of observed objects
+    /// - `a'` is the guessed count of observed objects
+    /// - `N` is the total count in the internal table
+    /// - `a <= a'` always holds
+    /// - `a' <= a + epsilon * N` holds with `p > 1 - delta`
+    ///
+    /// The following conditions must hold:
+    ///
+    /// - `epsilon > 0`
+    /// - `delta > 0` and `delta < 1`
+    ///
+    /// Panics when the input conditions do not hold.
+    pub fn with_point_query_properties(epsilon: f64, delta: f64) -> CountMinSketch<C> {
+        assert!(epsilon > 0.);
+        assert!(delta > 0.);
+        assert!(delta < 1.);
+
+        let w = (f64::consts::E / epsilon).ceil() as usize;
+        let d = (1. / delta).ln().ceil() as usize;
+        CountMinSketch::<C>::with_params(w, d)
+    }
+
     /// Get number of columns of internal counter table.
     pub fn w(&self) -> usize {
         self.w
@@ -180,6 +205,13 @@ mod tests {
         let cms = CountMinSketch::<usize>::with_params(10, 20);
         assert_eq!(cms.w(), 10);
         assert_eq!(cms.d(), 20);
+    }
+
+    #[test]
+    fn properties() {
+        let cms = CountMinSketch::<usize>::with_point_query_properties(0.01, 0.1);
+        assert_eq!(cms.w(), 272);
+        assert_eq!(cms.d(), 3);
     }
 
     #[test]
