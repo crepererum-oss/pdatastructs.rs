@@ -1,9 +1,9 @@
 use std::collections::hash_map::DefaultHasher;
 use std::f64;
 use std::fmt;
-use std::hash::{BuildHasherDefault, Hash};
+use std::hash::{BuildHasher, Hash};
 
-use utils::HashIter;
+use utils::{HashIter, MyBuildHasherDefault};
 
 
 /// Abstract, but safe counter.
@@ -65,13 +65,15 @@ impl_counter!(u8);
 /// The type parameter `C` sets the type of the counter in the internal table and can be used to
 /// reduce memory consumption when low counts are expected.
 #[derive(Clone)]
-pub struct CountMinSketch<C = usize>
+pub struct CountMinSketch<C = usize, B = MyBuildHasherDefault<DefaultHasher>>
 where
     C: Counter,
+    B: BuildHasher + Clone + Eq,
 {
     table: Vec<C>,
     w: usize,
     d: usize,
+    buildhasher: B,
 }
 
 
@@ -84,12 +86,8 @@ where
     /// - `w` sets the number of columns
     /// - `d` sets the number of rows
     pub fn with_params(w: usize, d: usize) -> CountMinSketch<C> {
-        let table = vec![C::zero(); w.checked_mul(d).unwrap()];
-        CountMinSketch {
-            table: table,
-            w: w,
-            d: d,
-        }
+        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        Self::with_params_and_hasher(w, d, bh)
     }
 
     /// Create new CountMinSketch with the following properties for a point query:
@@ -107,13 +105,41 @@ where
     ///
     /// Panics when the input conditions do not hold.
     pub fn with_point_query_properties(epsilon: f64, delta: f64) -> CountMinSketch<C> {
+        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        Self::with_point_query_properties_and_hasher(epsilon, delta, bh)
+    }
+}
+
+
+impl<C, B> CountMinSketch<C, B>
+where
+    C: Counter,
+    B: BuildHasher + Clone + Eq,
+{
+    /// Same as `with_params` but with a specific `BuildHasher`.
+    pub fn with_params_and_hasher(w: usize, d: usize, buildhasher: B) -> CountMinSketch<C, B> {
+        let table = vec![C::zero(); w.checked_mul(d).unwrap()];
+        CountMinSketch {
+            table: table,
+            w: w,
+            d: d,
+            buildhasher: buildhasher,
+        }
+    }
+
+    /// Same as `with_params_and_hasher` but with a specific `BuildHasher`.
+    pub fn with_point_query_properties_and_hasher(
+        epsilon: f64,
+        delta: f64,
+        buildhasher: B,
+    ) -> CountMinSketch<C, B> {
         assert!(epsilon > 0.);
         assert!(delta > 0.);
         assert!(delta < 1.);
 
         let w = (f64::consts::E / epsilon).ceil() as usize;
         let d = (1. / delta).ln().ceil() as usize;
-        CountMinSketch::<C>::with_params(w, d)
+        CountMinSketch::with_params_and_hasher(w, d, buildhasher)
     }
 
     /// Get number of columns of internal counter table.
@@ -124,6 +150,11 @@ where
     /// Get number of rows of internal counter table.
     pub fn d(&self) -> usize {
         self.d
+    }
+
+    /// Get `BuildHasher`
+    pub fn buildhasher(&self) -> &B {
+        &self.buildhasher
     }
 
     /// Check whether the CountMinSketch is empty (i.e. no elements seen yet).
@@ -144,8 +175,7 @@ where
     where
         T: Hash,
     {
-        let bh = BuildHasherDefault::<DefaultHasher>::default();
-        for (i, pos) in HashIter::new(self.w, self.d, obj, bh).enumerate() {
+        for (i, pos) in HashIter::new(self.w, self.d, obj, &self.buildhasher).enumerate() {
             let x = i * self.w + pos;
             self.table[x] = self.table[x].checked_add(n).unwrap();
         }
@@ -156,8 +186,7 @@ where
     where
         T: Hash,
     {
-        let bh = BuildHasherDefault::<DefaultHasher>::default();
-        HashIter::new(self.w, self.d, obj, bh)
+        HashIter::new(self.w, self.d, obj, &self.buildhasher)
             .enumerate()
             .map(|(i, pos)| i * self.w + pos)
             .map(|x| self.table[x])
@@ -170,10 +199,11 @@ where
     /// After this operation `self` will be in the same state as when it would have seen all
     /// elements from `self` and `other`.
     ///
-    /// Panics when `d` and `w` from `self` and `other` differ.
-    pub fn merge(&mut self, other: &CountMinSketch<C>) {
+    /// Panics when `d`, `w` or `buildhasher` from `self` and `other` differ.
+    pub fn merge(&mut self, other: &CountMinSketch<C, B>) {
         assert_eq!(self.d, other.d);
         assert_eq!(self.w, other.w);
+        assert!(self.buildhasher == other.buildhasher);
 
         self.table = self.table
             .iter()
@@ -205,6 +235,7 @@ mod tests {
         let cms = CountMinSketch::<usize>::with_params(10, 20);
         assert_eq!(cms.w(), 10);
         assert_eq!(cms.d(), 20);
+        cms.buildhasher();
     }
 
     #[test]

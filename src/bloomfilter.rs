@@ -1,17 +1,21 @@
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::{BuildHasherDefault, Hash};
+use std::hash::{BuildHasher, Hash};
 
 use bit_vec::BitVec;
 
-use utils::HashIter;
+use utils::{HashIter, MyBuildHasherDefault};
 
 
 /// Simple implementation of a [BloomFilter](https://en.wikipedia.org/wiki/Bloom_filter)
 #[derive(Clone)]
-pub struct BloomFilter {
+pub struct BloomFilter<B = MyBuildHasherDefault<DefaultHasher>>
+where
+    B: BuildHasher + Clone + Eq,
+{
     bv: BitVec,
     k: usize,
+    buildhasher: B,
 }
 
 
@@ -21,10 +25,8 @@ impl BloomFilter {
     /// - `k` is the number of hash functions
     /// - `m` is the number of bits used to store state
     pub fn with_params(m: usize, k: usize) -> BloomFilter {
-        BloomFilter {
-            bv: BitVec::from_elem(m, false),
-            k: k,
-        }
+        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        Self::with_params_and_hash(m, k, bh)
     }
 
     /// Create new, empty BloomFilter with given properties.
@@ -35,6 +37,27 @@ impl BloomFilter {
     ///
     /// Panics if the parameters are not in range.
     pub fn with_properties(n: usize, p: f64) -> BloomFilter {
+        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        Self::with_properties_and_hash(n, p, bh)
+    }
+}
+
+
+impl<B> BloomFilter<B>
+where
+    B: BuildHasher + Clone + Eq,
+{
+    /// Same as `with_params` but with specific `BuildHasher`.
+    pub fn with_params_and_hash(m: usize, k: usize, buildhasher: B) -> BloomFilter<B> {
+        BloomFilter {
+            bv: BitVec::from_elem(m, false),
+            k: k,
+            buildhasher: buildhasher,
+        }
+    }
+
+    /// Same as `with_properties` but with specific `BuildHasher`.
+    pub fn with_properties_and_hash(n: usize, p: f64, buildhasher: B) -> BloomFilter<B> {
         assert!(n > 0);
         assert!(p > 0.);
         assert!(p < 1.);
@@ -43,7 +66,7 @@ impl BloomFilter {
         let ln2 = (2f64).ln();
         let m = (-((n as f64) * p.ln()) / (ln2 * ln2)) as usize;
 
-        BloomFilter::with_params(m, k)
+        BloomFilter::with_params_and_hash(m, k, buildhasher)
     }
 
     /// Get `k` (number of hash functions).
@@ -56,6 +79,11 @@ impl BloomFilter {
         self.bv.len()
     }
 
+    /// Get `BuildHasher`.
+    pub fn buildhasher(&self) -> &B {
+        &self.buildhasher
+    }
+
     /// Add new element to the BloomFilter.
     ///
     /// If the same element is added multiple times or if an element results in the same hash
@@ -64,8 +92,7 @@ impl BloomFilter {
     where
         T: Hash,
     {
-        let bh = BuildHasherDefault::<DefaultHasher>::default();
-        for pos in HashIter::new(self.bv.len(), self.k, obj, bh) {
+        for pos in HashIter::new(self.bv.len(), self.k, obj, &self.buildhasher) {
             self.bv.set(pos, true);
         }
     }
@@ -75,8 +102,7 @@ impl BloomFilter {
     where
         T: Hash,
     {
-        let bh = BuildHasherDefault::<DefaultHasher>::default();
-        for pos in HashIter::new(self.bv.len(), self.k, obj, bh) {
+        for pos in HashIter::new(self.bv.len(), self.k, obj, &self.buildhasher) {
             if !self.bv.get(pos).unwrap() {
                 return false;
             }
@@ -99,10 +125,11 @@ impl BloomFilter {
     /// The result is the same as adding all elements added to `other` to `self` in the first
     /// place.
     ///
-    /// Panics if `k` and `m` of the two BloomFilters are not identical.
-    pub fn union(&mut self, other: &BloomFilter) {
+    /// Panics if `k`,`m` or `buildhasher` of the two BloomFilters are not identical.
+    pub fn union(&mut self, other: &BloomFilter<B>) {
         assert_eq!(self.k, other.k);
         assert_eq!(self.bv.len(), other.bv.len());
+        assert!(self.buildhasher == other.buildhasher);
 
         self.bv.union(&other.bv);
     }
@@ -134,6 +161,7 @@ mod tests {
         let bf = BloomFilter::with_params(100, 2);
         assert_eq!(bf.k(), 2);
         assert_eq!(bf.m(), 100);
+        bf.buildhasher();
     }
 
     #[test]

@@ -1,14 +1,20 @@
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::hash::{BuildHasher, Hash, Hasher};
+
+use utils::MyBuildHasherDefault;
 
 
 /// A simple implementation of a [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 #[derive(Clone)]
-pub struct HyperLogLog {
+pub struct HyperLogLog<B = MyBuildHasherDefault<DefaultHasher>>
+where
+    B: BuildHasher + Clone + Eq,
+{
     registers: Vec<u8>,
     b: usize,
+    buildhasher: B,
 }
 
 
@@ -23,11 +29,27 @@ impl HyperLogLog {
         assert!(b >= 4);
         assert!(b <= 16);
 
+        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        Self::with_hash(b, bh)
+    }
+}
+
+
+impl<B> HyperLogLog<B>
+where
+    B: BuildHasher + Clone + Eq,
+{
+    /// Same as `new` but with a specific `BuildHasher`.
+    pub fn with_hash(b: usize, buildhasher: B) -> HyperLogLog<B> {
+        assert!(b >= 4);
+        assert!(b <= 16);
+
         let m = (1 as usize) << b;
         let registers = vec![0; m];
         HyperLogLog {
             registers: registers,
             b: b,
+            buildhasher: buildhasher,
         }
     }
 
@@ -41,12 +63,17 @@ impl HyperLogLog {
         self.registers.len()
     }
 
+    /// Get `BuildHasher`.
+    pub fn buildhasher(&self) -> &B {
+        &self.buildhasher
+    }
+
     /// Adds an element to the HyperLogLog.
     pub fn add<T>(&mut self, obj: &T)
     where
         T: Hash,
     {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = self.buildhasher.build_hasher();
         obj.hash(&mut hasher);
         let h: u64 = hasher.finish();
 
@@ -104,9 +131,10 @@ impl HyperLogLog {
     /// This HyperLogLog will then have the same state as if all elements seen by `other` where
     /// directly added to `self`.
     ///
-    /// Panics when `b` parameter of `self` and `other` do not match.
-    pub fn merge(&mut self, other: &HyperLogLog) {
+    /// Panics when `b` or `buildhasher` parameter of `self` and `other` do not match.
+    pub fn merge(&mut self, other: &HyperLogLog<B>) {
         assert_eq!(self.b, other.b);
+        assert!(self.buildhasher == other.buildhasher);
 
         self.registers = self.registers
             .iter()
@@ -144,6 +172,7 @@ mod tests {
         let hll = HyperLogLog::new(8);
         assert_eq!(hll.b(), 8);
         assert_eq!(hll.m(), 1 << 8);
+        hll.buildhasher();
     }
 
     #[test]

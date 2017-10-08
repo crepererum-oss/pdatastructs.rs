@@ -8,3 +8,4 @@ mod utils;
 pub use bloomfilter::BloomFilter;
 pub use countminsketch::{CountMinSketch, Counter};
 pub use hyperloglog::HyperLogLog;
+pub use utils::MyBuildHasherDefault;
