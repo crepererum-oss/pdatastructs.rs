@@ -82,11 +82,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::ReservoirSampling;
-    use rand;
+    use rand::ChaChaRng;
 
     #[test]
     fn getter() {
-        let rs = ReservoirSampling::<u64, rand::ThreadRng>::new(10, rand::thread_rng());
+        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
         assert_eq!(rs.k(), 10);
         assert_eq!(rs.i(), 0);
         assert_eq!(rs.reservoir(), &vec![]);
@@ -94,14 +94,14 @@ mod tests {
 
     #[test]
     fn empty() {
-        let rs = ReservoirSampling::<u64, rand::ThreadRng>::new(10, rand::thread_rng());
+        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
         assert!(rs.is_empty());
         assert!(rs.reservoir().is_empty());
     }
 
     #[test]
     fn add_k() {
-        let mut rs = ReservoirSampling::<u64, rand::ThreadRng>::new(10, rand::thread_rng());
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
         for i in 0..10 {
             rs.add(i);
         }
@@ -111,14 +111,14 @@ mod tests {
 
     #[test]
     fn add_parts() {
-        let mut rs = ReservoirSampling::<u64, rand::ThreadRng>::new(100, rand::thread_rng());
-        for _ in 0..150 {
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(100, ChaChaRng::new_unseeded());
+        for _ in 0..1500 {
             rs.add(0);
         }
-        for _ in 0..750 {
+        for _ in 0..7500 {
             rs.add(1);
         }
-        for _ in 0..100 {
+        for _ in 0..1000 {
             rs.add(0);
         }
         assert!((rs.reservoir().iter().sum::<u64>() as i64 - 75).abs() < 5);
@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn debug() {
-        let rs = ReservoirSampling::<u64, rand::ThreadRng>::new(10, rand::thread_rng());
+        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
         assert_eq!(format!("{:?}", rs), "ReservoirSampling { k: 10 }");
     }
 }
