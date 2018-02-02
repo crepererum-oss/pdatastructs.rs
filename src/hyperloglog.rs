@@ -5,7 +5,6 @@ use std::hash::{BuildHasher, Hash, Hasher};
 
 use utils::MyBuildHasherDefault;
 
-
 /// A simple implementation of a [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 #[derive(Clone)]
 pub struct HyperLogLog<B = MyBuildHasherDefault<DefaultHasher>>
@@ -16,7 +15,6 @@ where
     b: usize,
     buildhasher: B,
 }
-
 
 impl HyperLogLog {
     /// Creates a new, empty HyperLogLog.
@@ -33,7 +31,6 @@ impl HyperLogLog {
         Self::with_hash(b, bh)
     }
 }
-
 
 impl<B> HyperLogLog<B>
 where
@@ -89,8 +86,8 @@ where
     pub fn count(&self) -> usize {
         let m = self.registers.len() as f64;
 
-        let z = 1f64 /
-            self.registers
+        let z = 1f64
+            / self.registers
                 .iter()
                 .map(|&x| 2f64.powi(-(x as i32)))
                 .sum::<f64>();
@@ -155,13 +152,11 @@ where
     }
 }
 
-
 impl fmt::Debug for HyperLogLog {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "HyperLogLog {{ b: {} }}", self.b)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -5,7 +5,6 @@ use std::hash::{BuildHasher, Hash};
 
 use utils::{HashIter, MyBuildHasherDefault};
 
-
 /// Abstract, but safe counter.
 pub trait Counter: Copy + fmt::Debug + Ord + Sized {
     /// Add self to another counter.
@@ -23,7 +22,6 @@ pub trait Counter: Copy + fmt::Debug + Ord + Sized {
     /// Checks whether the counter is zero.
     fn is_zero(&self) -> bool;
 }
-
 
 macro_rules! impl_counter {
     ($t:ty) => {
@@ -51,13 +49,11 @@ macro_rules! impl_counter {
     }
 }
 
-
 impl_counter!(usize);
 impl_counter!(u64);
 impl_counter!(u32);
 impl_counter!(u16);
 impl_counter!(u8);
-
 
 /// Simple implementation of a
 /// [Count-min sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
@@ -75,7 +71,6 @@ where
     d: usize,
     buildhasher: B,
 }
-
 
 impl<C> CountMinSketch<C>
 where
@@ -109,7 +104,6 @@ where
         Self::with_point_query_properties_and_hasher(epsilon, delta, bh)
     }
 }
-
 
 impl<C, B> CountMinSketch<C, B>
 where
@@ -218,13 +212,11 @@ where
     }
 }
 
-
 impl fmt::Debug for CountMinSketch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "CountMinSketch {{ w: {}, d: {} }}", self.w, self.d)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

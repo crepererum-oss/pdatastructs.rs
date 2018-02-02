@@ -2,7 +2,6 @@ use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker;
 
-
 pub struct HashIter<'a, 'b, T, B>
 where
     T: 'a + Hash,
@@ -14,7 +13,6 @@ where
     obj: &'a T,
     buildhasher: &'b B,
 }
-
 
 impl<'a, 'b, T, B> HashIter<'a, 'b, T, B>
 where
@@ -31,7 +29,6 @@ where
         }
     }
 }
-
 
 impl<'a, 'b, T, B> Iterator for HashIter<'a, 'b, T, B>
 where
@@ -55,7 +52,6 @@ where
         }
     }
 }
-
 
 /// Like `BuildHasherDefault` but implements `Eq`.
 pub struct MyBuildHasherDefault<H>(marker::PhantomData<H>);

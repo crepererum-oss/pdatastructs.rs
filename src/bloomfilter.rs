@@ -6,7 +6,6 @@ use bit_vec::BitVec;
 
 use utils::{HashIter, MyBuildHasherDefault};
 
-
 /// Simple implementation of a [BloomFilter](https://en.wikipedia.org/wiki/Bloom_filter)
 #[derive(Clone)]
 pub struct BloomFilter<B = MyBuildHasherDefault<DefaultHasher>>
@@ -17,7 +16,6 @@ where
     k: usize,
     buildhasher: B,
 }
-
 
 impl BloomFilter {
     /// Create new, empty BloomFilter with internal parameters.
@@ -41,7 +39,6 @@ impl BloomFilter {
         Self::with_properties_and_hash(n, p, bh)
     }
 }
-
 
 impl<B> BloomFilter<B>
 where
@@ -144,13 +141,11 @@ where
     }
 }
 
-
 impl fmt::Debug for BloomFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "BloomFilter {{ m: {}, k: {} }}", self.bv.len(), self.k)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

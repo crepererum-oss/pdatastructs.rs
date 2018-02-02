@@ -12,7 +12,6 @@ where
     skip_until: usize,
 }
 
-
 impl<T, R> ReservoirSampling<T, R>
 where
     R: Rng,
