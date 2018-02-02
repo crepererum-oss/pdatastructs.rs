@@ -1,5 +1,5 @@
 use rand::Rng;
-
+use std::fmt;
 
 pub struct ReservoirSampling<T, R>
 where
@@ -71,6 +71,14 @@ where
     }
 }
 
+impl<T, R> fmt::Debug for ReservoirSampling<T, R>
+where
+    R: Rng,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ReservoirSampling {{ k: {} }}", self.k)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -115,5 +123,11 @@ mod tests {
             rs.add(0);
         }
         assert!((rs.reservoir().iter().sum::<u64>() as i64 - 75).abs() < 5);
+    }
+
+    #[test]
+    fn debug() {
+        let rs = ReservoirSampling::<u64, rand::ThreadRng>::new(10, rand::thread_rng());
+        assert_eq!(format!("{:?}", rs), "ReservoirSampling { k: 10 }");
     }
 }
