@@ -59,11 +59,7 @@ where
     T: Eq + Ord,
 {
     fn cmp(&self, other: &TreeEntry<T>) -> Ordering {
-        match self.n.cmp(&other.n) {
-            Ordering::Greater => Ordering::Greater,
-            Ordering::Less => Ordering::Less,
-            Ordering::Equal => self.obj.cmp(&other.obj),
-        }
+        self.partial_cmp(other).unwrap()
     }
 }
 
@@ -216,7 +212,7 @@ mod tests {
 
     #[test]
     fn getter() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::with_params(10, 20);
         let tk: TopK<usize> = TopK::new(2, cms);
 
         assert_eq!(tk.k(), 2);
@@ -224,7 +220,7 @@ mod tests {
 
     #[test]
     fn add_1() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::with_params(10, 20);
         let mut tk = TopK::new(2, cms);
 
         tk.add(1);
@@ -233,7 +229,7 @@ mod tests {
 
     #[test]
     fn add_2_same() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::with_params(10, 20);
         let mut tk = TopK::new(2, cms);
 
         tk.add(1);
@@ -243,7 +239,7 @@ mod tests {
 
     #[test]
     fn add_2_different() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::with_params(10, 20);
         let mut tk = TopK::new(2, cms);
 
         tk.add(1);
@@ -253,7 +249,7 @@ mod tests {
 
     #[test]
     fn add_n() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::with_params(10, 20);
         let mut tk = TopK::new(2, cms);
 
         for i in 0..5 {
@@ -273,7 +269,7 @@ mod tests {
 
     #[test]
     fn is_empty() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::with_params(10, 20);
         let mut tk = TopK::new(2, cms);
         assert_eq!(tk.is_empty(), true);
 
@@ -283,7 +279,7 @@ mod tests {
 
     #[test]
     fn clear() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::with_params(10, 20);
         let mut tk = TopK::new(2, cms);
         tk.add(0);
 
@@ -296,7 +292,7 @@ mod tests {
 
     #[test]
     fn clone() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::with_params(10, 20);
         let mut tk1 = TopK::new(2, cms);
         tk1.add(0);
 
