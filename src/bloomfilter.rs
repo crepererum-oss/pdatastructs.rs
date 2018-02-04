@@ -147,6 +147,17 @@ impl fmt::Debug for BloomFilter {
     }
 }
 
+impl<T> Extend<T> for BloomFilter
+where
+    T: Hash,
+{
+    fn extend<S: IntoIterator<Item = T>>(&mut self, iter: S) {
+        for elem in iter {
+            self.add(&elem);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::BloomFilter;
@@ -252,5 +263,15 @@ mod tests {
     fn debug() {
         let bf = BloomFilter::with_params(100, 2);
         assert_eq!(format!("{:?}", bf), "BloomFilter { m: 100, k: 2 }");
+    }
+
+    #[test]
+    fn extend() {
+        let mut bf = BloomFilter::with_params(100, 2);
+
+        bf.extend(vec![1, 2]);
+        assert!(bf.query(&1));
+        assert!(bf.query(&2));
+        assert!(!bf.query(&3));
     }
 }
