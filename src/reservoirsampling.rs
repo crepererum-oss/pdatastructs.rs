@@ -77,6 +77,13 @@ where
     pub fn is_empty(&self) -> bool {
         self.i == 0
     }
+
+    /// Clear sampler state. It now behaves like a fresh one (i.e. no data points seen so far).
+    pub fn clear(&mut self) {
+        self.i = 0;
+        self.skip_until = 0;
+        self.reservoir.clear();
+    }
 }
 
 impl<T, R> fmt::Debug for ReservoirSampling<T, R>
@@ -137,5 +144,22 @@ mod tests {
     fn debug() {
         let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
         assert_eq!(format!("{:?}", rs), "ReservoirSampling { k: 10 }");
+    }
+
+    #[test]
+    fn add_clear() {
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        for i in 0..10 {
+            rs.add(i);
+        }
+        rs.clear();
+        for i in 10..20 {
+            rs.add(i);
+        }
+        assert_eq!(rs.i(), 10);
+        assert_eq!(
+            rs.reservoir(),
+            &vec![10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+        );
     }
 }
