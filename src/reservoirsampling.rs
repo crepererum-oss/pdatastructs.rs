@@ -1,6 +1,8 @@
 use rand::Rng;
 use std::fmt;
 
+/// Simple implementation of [Reservoir Sampling](https://en.wikipedia.org/wiki/Reservoir_sampling)
+/// with [fast approximation](https://erikerlandson.github.io/blog/2015/11/20/very-fast-reservoir-sampling/)
 pub struct ReservoirSampling<T, R>
 where
     R: Rng,
@@ -16,6 +18,8 @@ impl<T, R> ReservoirSampling<T, R>
 where
     R: Rng,
 {
+    /// Create new reservoir sampler that keeps `k` samples and uses `rng` for its random
+    /// decisions.
     pub fn new(k: usize, rng: R) -> ReservoirSampling<T, R> {
         ReservoirSampling {
             k: k,
@@ -26,18 +30,22 @@ where
         }
     }
 
+    /// Number of samples that should be kept.
     pub fn k(&self) -> usize {
         self.k
     }
 
+    /// Read-only copy of the reservoir. Contains at most `k` entries.
     pub fn reservoir(&self) -> &Vec<T> {
         &self.reservoir
     }
 
+    /// Number of data points seen.
     pub fn i(&self) -> usize {
         self.i
     }
 
+    /// Observe new data point.
     pub fn add(&mut self, obj: T) {
         let t = self.k * 4; // TODO: make this a parameter
 
@@ -65,6 +73,7 @@ where
         self.i += 1;
     }
 
+    /// Checks if reservoir is empty (i.e. no data points where observed)
     pub fn is_empty(&self) -> bool {
         self.i == 0
     }
