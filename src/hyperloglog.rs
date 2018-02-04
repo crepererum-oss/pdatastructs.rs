@@ -158,6 +158,17 @@ impl fmt::Debug for HyperLogLog {
     }
 }
 
+impl<T> Extend<T> for HyperLogLog
+where
+    T: Hash,
+{
+    fn extend<S: IntoIterator<Item = T>>(&mut self, iter: S) {
+        for elem in iter {
+            self.add(&elem);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HyperLogLog;
@@ -321,5 +332,13 @@ mod tests {
     fn debug() {
         let hll = HyperLogLog::new(12);
         assert_eq!(format!("{:?}", hll), "HyperLogLog { b: 12 }");
+    }
+
+    #[test]
+    fn extend() {
+        let mut hll = HyperLogLog::new(4);
+        hll.extend(0..1000);
+        assert_eq!(hll.count(), 571);
+        assert!(!hll.is_empty());
     }
 }
