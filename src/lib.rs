@@ -11,10 +11,12 @@ mod bloomfilter;
 mod countminsketch;
 mod hyperloglog;
 mod reservoirsampling;
+mod topk;
 mod utils;
 
 pub use bloomfilter::BloomFilter;
 pub use countminsketch::{CountMinSketch, Counter};
 pub use hyperloglog::HyperLogLog;
 pub use reservoirsampling::ReservoirSampling;
+pub use topk::TopK;
 pub use utils::MyBuildHasherDefault;
