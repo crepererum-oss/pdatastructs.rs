@@ -2,6 +2,7 @@ use countminsketch::CountMinSketch;
 use std::collections::{BTreeSet, HashMap};
 use std::collections::hash_map::Entry;
 use std::cmp::Ordering;
+use std::fmt;
 use std::hash::Hash;
 use std::rc::Rc;
 
@@ -188,6 +189,26 @@ where
     }
 }
 
+impl<T> fmt::Debug for TopK<T>
+where
+    T: Clone + Eq + Hash + Ord,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TopK {{ k: {} }}", self.k)
+    }
+}
+
+impl<T> Extend<T> for TopK<T>
+where
+    T: Clone + Eq + Hash + Ord,
+{
+    fn extend<S: IntoIterator<Item = T>>(&mut self, iter: S) {
+        for elem in iter {
+            self.add(elem);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use countminsketch::CountMinSketch;
@@ -284,5 +305,21 @@ mod tests {
 
         assert_eq!(tk1.values(), vec![0]);
         assert_eq!(tk2.values(), vec![0, 1]);
+    }
+
+    #[test]
+    fn debug() {
+        let cms = CountMinSketch::with_params(10, 20);
+        let tk: TopK<usize> = TopK::new(2, cms);
+        assert_eq!(format!("{:?}", tk), "TopK { k: 2 }");
+    }
+
+    #[test]
+    fn extend() {
+        let cms = CountMinSketch::with_params(10, 10);
+        let mut tk = TopK::new(2, cms);
+
+        tk.extend(vec![0, 1]);
+        assert_eq!(tk.values(), vec![0, 1]);
     }
 }
