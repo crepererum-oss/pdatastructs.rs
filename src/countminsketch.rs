@@ -218,6 +218,17 @@ impl fmt::Debug for CountMinSketch {
     }
 }
 
+impl<T> Extend<T> for CountMinSketch
+where
+    T: Hash,
+{
+    fn extend<S: IntoIterator<Item = T>>(&mut self, iter: S) {
+        for elem in iter {
+            self.add(&elem);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::CountMinSketch;
@@ -348,5 +359,14 @@ mod tests {
     fn debug() {
         let cms = CountMinSketch::<usize>::with_params(10, 20);
         assert_eq!(format!("{:?}", cms), "CountMinSketch { w: 10, d: 20 }");
+    }
+
+    #[test]
+    fn extend() {
+        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+
+        cms.extend(vec![1, 1]);
+        assert_eq!(cms.query_point(&1), 2);
+        assert_eq!(cms.query_point(&2), 0);
     }
 }
