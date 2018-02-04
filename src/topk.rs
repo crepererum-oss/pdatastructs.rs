@@ -178,6 +178,13 @@ where
     pub fn is_empty(&self) -> bool {
         self.obj2count.is_empty()
     }
+
+    /// Clear sampler, so that it behaves like it never observed any data points.
+    pub fn clear(&mut self) {
+        self.cms.clear();
+        self.tree.clear();
+        self.obj2count.clear();
+    }
 }
 
 #[cfg(test)]
@@ -250,5 +257,18 @@ mod tests {
 
         tk.add(0);
         assert_eq!(tk.is_empty(), false);
+    }
+
+    #[test]
+    fn clear() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let mut tk = TopK::new(2, cms);
+        tk.add(0);
+
+        tk.clear();
+        assert_eq!(tk.is_empty(), true);
+
+        tk.add(1);
+        assert_eq!(tk.values(), vec![1]);
     }
 }
