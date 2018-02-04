@@ -147,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn add_clear() {
+    fn clear() {
         let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
         for i in 0..10 {
             rs.add(i);
