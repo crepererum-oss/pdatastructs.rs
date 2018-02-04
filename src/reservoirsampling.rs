@@ -3,6 +3,7 @@ use std::fmt;
 
 /// Simple implementation of [Reservoir Sampling](https://en.wikipedia.org/wiki/Reservoir_sampling)
 /// with [fast approximation](https://erikerlandson.github.io/blog/2015/11/20/very-fast-reservoir-sampling/)
+#[derive(Clone)]
 pub struct ReservoirSampling<T, R>
 where
     R: Rng,
@@ -180,5 +181,24 @@ mod tests {
         rs.extend(0..10);
         assert_eq!(rs.i(), 10);
         assert_eq!(rs.reservoir(), &vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn clone() {
+        let mut rs1 = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        for i in 0..10 {
+            rs1.add(i);
+        }
+        let mut rs2 = rs1.clone();
+        for _ in 0..1000 {
+            rs2.add(99);
+        }
+        assert_eq!(rs1.i(), 10);
+        assert_eq!(rs2.i(), 1010);
+        assert_eq!(rs1.reservoir(), &vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(
+            rs2.reservoir(),
+            &vec![99, 99, 99, 99, 99, 99, 99, 99, 99, 99]
+        );
     }
 }
