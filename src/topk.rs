@@ -88,13 +88,21 @@ where
     /// - `k`: number of elements to remember
     /// - `cms`: CountMinSketch that is used for guessing the frequency of elements not currently
     ///   hold. Refer to its documentation about parameter selection.
+    ///
+    /// Panics if `k == 0`.
     pub fn new(k: usize, cms: CountMinSketch) -> TopK<T> {
+        assert!(k > 0);
         TopK {
             cms: cms,
             obj2count: HashMap::new(),
             tree: BTreeSet::new(),
             k: k,
         }
+    }
+
+    /// Number of data points to remember.
+    pub fn k(&self) -> usize {
+        return self.k;
     }
 
     /// Observe a data point.
@@ -165,12 +173,25 @@ where
     pub fn values(&self) -> Vec<T> {
         self.tree.iter().map(|x| (*x.obj).clone()).collect()
     }
+
+    /// Check whether the sampler is empty (i.e. no data points observer so far)
+    pub fn is_empty(&self) -> bool {
+        self.obj2count.is_empty()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use countminsketch::CountMinSketch;
     use super::TopK;
+
+    #[test]
+    fn getter() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let tk: TopK<usize> = TopK::new(2, cms);
+
+        assert_eq!(tk.k(), 2);
+    }
 
     #[test]
     fn add() {
@@ -190,5 +211,15 @@ mod tests {
             tk.add(i);
         }
         assert_eq!(tk.values(), vec![99, 100]);
+    }
+
+    #[test]
+    fn is_empty() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let mut tk = TopK::new(2, cms);
+        assert_eq!(tk.is_empty(), true);
+
+        tk.add(0);
+        assert_eq!(tk.is_empty(), false);
     }
 }
