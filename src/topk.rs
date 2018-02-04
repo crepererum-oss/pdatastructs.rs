@@ -69,6 +69,7 @@ where
 /// Top-K implementation.
 ///
 /// This data structure keeps the `k` most frequent data points of a stream.
+#[derive(Clone)]
 pub struct TopK<T>
 where
     T: Clone + Eq + Hash + Ord,
@@ -270,5 +271,18 @@ mod tests {
 
         tk.add(1);
         assert_eq!(tk.values(), vec![1]);
+    }
+
+    #[test]
+    fn clone() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let mut tk1 = TopK::new(2, cms);
+        tk1.add(0);
+
+        let mut tk2 = tk1.clone();
+        tk2.add(1);
+
+        assert_eq!(tk1.values(), vec![0]);
+        assert_eq!(tk2.values(), vec![0, 1]);
     }
 }
