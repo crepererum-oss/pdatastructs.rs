@@ -194,7 +194,36 @@ mod tests {
     }
 
     #[test]
-    fn add() {
+    fn add_1() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let mut tk = TopK::new(2, cms);
+
+        tk.add(1);
+        assert_eq!(tk.values(), vec![1]);
+    }
+
+    #[test]
+    fn add_2_same() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let mut tk = TopK::new(2, cms);
+
+        tk.add(1);
+        tk.add(1);
+        assert_eq!(tk.values(), vec![1]);
+    }
+
+    #[test]
+    fn add_2_different() {
+        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let mut tk = TopK::new(2, cms);
+
+        tk.add(1);
+        tk.add(2);
+        assert_eq!(tk.values(), vec![1, 2]);
+    }
+
+    #[test]
+    fn add_n() {
         let cms = CountMinSketch::<usize>::with_params(10, 20);
         let mut tk = TopK::new(2, cms);
 
