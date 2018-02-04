@@ -95,6 +95,17 @@ where
     }
 }
 
+impl<T, R> Extend<T> for ReservoirSampling<T, R>
+where
+    R: Rng,
+{
+    fn extend<S: IntoIterator<Item = T>>(&mut self, iter: S) {
+        for elem in iter {
+            self.add(elem);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::ReservoirSampling;
@@ -161,5 +172,13 @@ mod tests {
             rs.reservoir(),
             &vec![10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
         );
+    }
+
+    #[test]
+    fn extend() {
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        rs.extend(0..10);
+        assert_eq!(rs.i(), 10);
+        assert_eq!(rs.reservoir(), &vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     }
 }
