@@ -50,6 +50,7 @@ macro_rules! impl_counter {
 }
 
 impl_counter!(usize);
+impl_counter!(u128);
 impl_counter!(u64);
 impl_counter!(u32);
 impl_counter!(u16);

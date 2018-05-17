@@ -164,12 +164,12 @@ where
         }
     }
 
-    /// Returns top-k values.
+    /// Iterates over collected top-k values.
     ///
     /// The result may contain less than `k` values if less than `k` unique data points where
     /// observed.
-    pub fn values(&self) -> Vec<T> {
-        self.tree.iter().map(|x| (*x.obj).clone()).collect()
+    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item=T> {
+        self.tree.iter().map(|x| (*x.obj).clone())
     }
 
     /// Check whether the sampler is empty (i.e. no data points observer so far)
@@ -224,7 +224,7 @@ mod tests {
         let mut tk = TopK::new(2, cms);
 
         tk.add(1);
-        assert_eq!(tk.values(), vec![1]);
+        assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![1]);
     }
 
     #[test]
@@ -234,7 +234,7 @@ mod tests {
 
         tk.add(1);
         tk.add(1);
-        assert_eq!(tk.values(), vec![1]);
+        assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![1]);
     }
 
     #[test]
@@ -244,7 +244,7 @@ mod tests {
 
         tk.add(1);
         tk.add(2);
-        assert_eq!(tk.values(), vec![1, 2]);
+        assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![1, 2]);
     }
 
     #[test]
@@ -264,7 +264,7 @@ mod tests {
         for i in 0..5 {
             tk.add(i);
         }
-        assert_eq!(tk.values(), vec![99, 100]);
+        assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![99, 100]);
     }
 
     #[test]
@@ -287,7 +287,7 @@ mod tests {
         assert_eq!(tk.is_empty(), true);
 
         tk.add(1);
-        assert_eq!(tk.values(), vec![1]);
+        assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![1]);
     }
 
     #[test]
@@ -299,8 +299,8 @@ mod tests {
         let mut tk2 = tk1.clone();
         tk2.add(1);
 
-        assert_eq!(tk1.values(), vec![0]);
-        assert_eq!(tk2.values(), vec![0, 1]);
+        assert_eq!(tk1.iter().collect::<Vec<u32>>(), vec![0]);
+        assert_eq!(tk2.iter().collect::<Vec<u32>>(), vec![0, 1]);
     }
 
     #[test]
@@ -316,6 +316,6 @@ mod tests {
         let mut tk = TopK::new(2, cms);
 
         tk.extend(vec![0, 1]);
-        assert_eq!(tk.values(), vec![0, 1]);
+        assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![0, 1]);
     }
 }
