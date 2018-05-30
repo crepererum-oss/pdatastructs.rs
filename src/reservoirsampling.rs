@@ -110,11 +110,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::ReservoirSampling;
-    use rand::ChaChaRng;
+    use rand::{ChaChaRng, SeedableRng};
 
     #[test]
     fn getter() {
-        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
         assert_eq!(rs.k(), 10);
         assert_eq!(rs.i(), 0);
         assert_eq!(rs.reservoir(), &vec![]);
@@ -122,14 +122,14 @@ mod tests {
 
     #[test]
     fn empty() {
-        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
         assert!(rs.is_empty());
         assert!(rs.reservoir().is_empty());
     }
 
     #[test]
     fn add_k() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
         for i in 0..10 {
             rs.add(i);
         }
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn add_parts() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(100, ChaChaRng::new_unseeded());
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(100, ChaChaRng::from_seed([0; 32]));
         for _ in 0..1500 {
             rs.add(0);
         }
@@ -154,13 +154,13 @@ mod tests {
 
     #[test]
     fn debug() {
-        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
         assert_eq!(format!("{:?}", rs), "ReservoirSampling { k: 10 }");
     }
 
     #[test]
     fn clear() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
         for i in 0..10 {
             rs.add(i);
         }
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn extend() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
         rs.extend(0..10);
         assert_eq!(rs.i(), 10);
         assert_eq!(rs.reservoir(), &vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn clone() {
-        let mut rs1 = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::new_unseeded());
+        let mut rs1 = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
         for i in 0..10 {
             rs1.add(i);
         }

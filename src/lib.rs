@@ -4,7 +4,7 @@
 
 #![deny(missing_docs)]
 
-extern crate bit_vec;
+extern crate fixedbitset;
 extern crate rand;
 
 mod bloomfilter;

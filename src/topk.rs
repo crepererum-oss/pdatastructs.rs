@@ -1,7 +1,7 @@
 use countminsketch::CountMinSketch;
-use std::collections::{BTreeSet, HashMap};
-use std::collections::hash_map::Entry;
 use std::cmp::Ordering;
+use std::collections::hash_map::Entry;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -168,7 +168,7 @@ where
     ///
     /// The result may contain less than `k` values if less than `k` unique data points where
     /// observed.
-    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item=T> {
+    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = T> {
         self.tree.iter().map(|x| (*x.obj).clone())
     }
 
@@ -207,8 +207,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use countminsketch::CountMinSketch;
     use super::TopK;
+    use countminsketch::CountMinSketch;
 
     #[test]
     fn getter() {

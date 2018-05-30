@@ -86,11 +86,10 @@ where
     pub fn count(&self) -> usize {
         let m = self.registers.len() as f64;
 
-        let z = 1f64
-            / self.registers
-                .iter()
-                .map(|&x| 2f64.powi(-(x as i32)))
-                .sum::<f64>();
+        let z = 1f64 / self.registers
+            .iter()
+            .map(|&x| 2f64.powi(-(x as i32)))
+            .sum::<f64>();
 
         let am = if m >= 128. {
             0.7213 / (1. + 1.079 / m)

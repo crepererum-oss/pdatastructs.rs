@@ -46,7 +46,7 @@ macro_rules! impl_counter {
                 *self == 0
             }
         }
-    }
+    };
 }
 
 impl_counter!(usize);
