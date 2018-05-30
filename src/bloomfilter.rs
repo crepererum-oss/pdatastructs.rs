@@ -2,7 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
 
-use bit_vec::BitVec;
+use fixedbitset::FixedBitSet;
 
 use utils::{HashIter, MyBuildHasherDefault};
 
@@ -12,7 +12,7 @@ pub struct BloomFilter<B = MyBuildHasherDefault<DefaultHasher>>
 where
     B: BuildHasher + Clone + Eq,
 {
-    bv: BitVec,
+    bs: FixedBitSet,
     k: usize,
     buildhasher: B,
 }
@@ -47,7 +47,7 @@ where
     /// Same as `with_params` but with specific `BuildHasher`.
     pub fn with_params_and_hash(m: usize, k: usize, buildhasher: B) -> BloomFilter<B> {
         BloomFilter {
-            bv: BitVec::from_elem(m, false),
+            bs: FixedBitSet::with_capacity(m),
             k: k,
             buildhasher: buildhasher,
         }
@@ -73,7 +73,7 @@ where
 
     /// Get `m` (number of stored bits).
     pub fn m(&self) -> usize {
-        self.bv.len()
+        self.bs.len()
     }
 
     /// Get `BuildHasher`.
@@ -89,8 +89,8 @@ where
     where
         T: Hash,
     {
-        for pos in HashIter::new(self.bv.len(), self.k, obj, &self.buildhasher) {
-            self.bv.set(pos, true);
+        for pos in HashIter::new(self.bs.len(), self.k, obj, &self.buildhasher) {
+            self.bs.set(pos, true);
         }
     }
 
@@ -99,8 +99,8 @@ where
     where
         T: Hash,
     {
-        for pos in HashIter::new(self.bv.len(), self.k, obj, &self.buildhasher) {
-            if !self.bv.get(pos).unwrap() {
+        for pos in HashIter::new(self.bs.len(), self.k, obj, &self.buildhasher) {
+            if !self.bs[pos] {
                 return false;
             }
         }
@@ -109,12 +109,12 @@ where
 
     /// Clear state of the BloomFilter, so that it behaves like a fresh one.
     pub fn clear(&mut self) {
-        self.bv.clear()
+        self.bs.clear()
     }
 
     /// Check whether the BloomFilter is empty.
     pub fn is_empty(&self) -> bool {
-        !self.bv.iter().any(|x| x)
+        self.bs.ones().next().is_none()
     }
 
     /// Add the entire content of another bloomfilter to this BloomFilter.
@@ -125,17 +125,17 @@ where
     /// Panics if `k`,`m` or `buildhasher` of the two BloomFilters are not identical.
     pub fn union(&mut self, other: &BloomFilter<B>) {
         assert_eq!(self.k, other.k);
-        assert_eq!(self.bv.len(), other.bv.len());
+        assert_eq!(self.bs.len(), other.bs.len());
         assert!(self.buildhasher == other.buildhasher);
 
-        self.bv.union(&other.bv);
+        self.bs = &self.bs | &other.bs;
     }
 
     /// Guess the number of unique elements added to the BloomFilter.
     pub fn guess_n(&self) -> usize {
-        let m = self.bv.len() as f64;
+        let m = self.bs.len() as f64;
         let k = self.k as f64;
-        let x = self.bv.iter().filter(|x| *x).count() as f64;
+        let x = self.bs.ones().count() as f64;
 
         (-m / k * (1. - x / m).ln()) as usize
     }
@@ -143,7 +143,7 @@ where
 
 impl fmt::Debug for BloomFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BloomFilter {{ m: {}, k: {} }}", self.bv.len(), self.k)
+        write!(f, "BloomFilter {{ m: {}, k: {} }}", self.bs.len(), self.k)
     }
 }
 

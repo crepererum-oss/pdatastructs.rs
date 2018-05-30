@@ -11,5 +11,5 @@ documentation = "https://docs.rs/pdatastructs/"
 readme = "README.md"
 
 [dependencies]
-bit-vec = "0.4"
+fixedbitset = "^0.1.9"
 rand = "0.5"
