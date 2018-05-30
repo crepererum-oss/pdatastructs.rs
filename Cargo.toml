@@ -12,4 +12,4 @@ readme = "README.md"
 
 [dependencies]
 bit-vec = "0.4"
-rand = "0.3"
+rand = "0.5"
