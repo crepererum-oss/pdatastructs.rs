@@ -1,3 +1,4 @@
+use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker;
@@ -88,3 +89,26 @@ impl<H> PartialEq for MyBuildHasherDefault<H> {
     }
 }
 impl<H> Eq for MyBuildHasherDefault<H> {}
+
+/// BuildHasher that takes a seed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BuildHasherSeeded {
+    seed: usize,
+}
+
+impl BuildHasherSeeded {
+    /// Create new BuildHasherSeeded with given seed.
+    pub fn new(seed: usize) -> Self {
+        Self { seed: seed }
+    }
+}
+
+impl BuildHasher for BuildHasherSeeded {
+    type Hasher = DefaultHasher;
+
+    fn build_hasher(&self) -> DefaultHasher {
+        let mut h = DefaultHasher::default();
+        h.write_usize(self.seed);
+        h
+    }
+}

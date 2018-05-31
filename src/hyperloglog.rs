@@ -24,9 +24,6 @@ impl HyperLogLog {
     ///
     /// Panics when `b` is out of bounds.
     pub fn new(b: usize) -> HyperLogLog {
-        assert!(b >= 4);
-        assert!(b <= 16);
-
         let bh = MyBuildHasherDefault::<DefaultHasher>::default();
         Self::with_hash(b, bh)
     }
@@ -38,8 +35,11 @@ where
 {
     /// Same as `new` but with a specific `BuildHasher`.
     pub fn with_hash(b: usize, buildhasher: B) -> HyperLogLog<B> {
-        assert!(b >= 4);
-        assert!(b <= 16);
+        assert!(
+            (b >= 4) & (b <= 16),
+            "b ({}) must be larger or equal than 4 and smaller or equal than 16",
+            b
+        );
 
         let m = (1 as usize) << b;
         let registers = vec![0; m];
@@ -129,8 +129,15 @@ where
     ///
     /// Panics when `b` or `buildhasher` parameter of `self` and `other` do not match.
     pub fn merge(&mut self, other: &HyperLogLog<B>) {
-        assert_eq!(self.b, other.b);
-        assert!(self.buildhasher == other.buildhasher);
+        assert_eq!(
+            self.b, other.b,
+            "b must be equal (left={}, right={})",
+            self.b, other.b
+        );
+        assert!(
+            self.buildhasher == other.buildhasher,
+            "buildhasher must be equal"
+        );
 
         self.registers = self.registers
             .iter()
@@ -171,6 +178,19 @@ where
 #[cfg(test)]
 mod tests {
     use super::HyperLogLog;
+    use utils::BuildHasherSeeded;
+
+    #[test]
+    #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 16")]
+    fn new_panics_b3() {
+        HyperLogLog::new(3);
+    }
+
+    #[test]
+    #[should_panic(expected = "b (17) must be larger or equal than 4 and smaller or equal than 16")]
+    fn new_panics_b17() {
+        HyperLogLog::new(17);
+    }
 
     #[test]
     fn getter() {
@@ -325,6 +345,22 @@ mod tests {
 
         hll1.merge(&hll2);
         assert_eq!(hll.count(), hll1.count());
+    }
+
+    #[test]
+    #[should_panic(expected = "b must be equal (left=5, right=12)")]
+    fn merge_panics_p() {
+        let mut hll1 = HyperLogLog::new(5);
+        let hll2 = HyperLogLog::new(12);
+        hll1.merge(&hll2);
+    }
+
+    #[test]
+    #[should_panic(expected = "buildhasher must be equal")]
+    fn merge_panics_buildhasher() {
+        let mut hll1 = HyperLogLog::with_hash(12, BuildHasherSeeded::new(0));
+        let hll2 = HyperLogLog::with_hash(12, BuildHasherSeeded::new(1));
+        hll1.merge(&hll2);
     }
 
     #[test]

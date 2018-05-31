@@ -89,7 +89,8 @@ where
     ///
     /// Panics if `k == 0`.
     pub fn new(k: usize, cms: CountMinSketch) -> TopK<T> {
-        assert!(k > 0);
+        assert!(k > 0, "k must be greater than 0");
+
         TopK {
             cms: cms,
             obj2count: HashMap::new(),
@@ -209,6 +210,13 @@ where
 mod tests {
     use super::TopK;
     use countminsketch::CountMinSketch;
+
+    #[test]
+    #[should_panic(expected = "k must be greater than 0")]
+    fn new_panics_k0() {
+        let cms = CountMinSketch::with_params(10, 20);
+        TopK::<usize>::new(0, cms);
+    }
 
     #[test]
     fn getter() {

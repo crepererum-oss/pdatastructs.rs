@@ -55,9 +55,12 @@ where
 
     /// Same as `with_properties` but with specific `BuildHasher`.
     pub fn with_properties_and_hash(n: usize, p: f64, buildhasher: B) -> BloomFilter<B> {
-        assert!(n > 0);
-        assert!(p > 0.);
-        assert!(p < 1.);
+        assert!(n > 0, "n must be greater than 0");
+        assert!(
+            (p > 0.) & (p < 1.),
+            "p ({}) must be greater than 0 and smaller than 1",
+            p
+        );
 
         let k = (-p.log2()) as usize;
         let ln2 = (2f64).ln();
@@ -124,9 +127,22 @@ where
     ///
     /// Panics if `k`,`m` or `buildhasher` of the two BloomFilters are not identical.
     pub fn union(&mut self, other: &BloomFilter<B>) {
-        assert_eq!(self.k, other.k);
-        assert_eq!(self.bs.len(), other.bs.len());
-        assert!(self.buildhasher == other.buildhasher);
+        assert_eq!(
+            self.k, other.k,
+            "k must be equal (left={}, right={})",
+            self.k, other.k
+        );
+        assert_eq!(
+            self.bs.len(),
+            other.bs.len(),
+            "m must be equal (left={}, right={})",
+            self.bs.len(),
+            other.bs.len()
+        );
+        assert!(
+            self.buildhasher == other.buildhasher,
+            "buildhasher must be equal"
+        );
 
         self.bs = &self.bs | &other.bs;
     }
@@ -161,6 +177,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::BloomFilter;
+    use utils::BuildHasherSeeded;
 
     #[test]
     fn getter() {
@@ -238,10 +255,52 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "k must be equal (left=2, right=3)")]
+    fn union_panics_k() {
+        let mut bf1 = BloomFilter::with_params(100, 2);
+        let bf2 = BloomFilter::with_params(100, 3);
+        bf1.union(&bf2);
+    }
+
+    #[test]
+    #[should_panic(expected = "m must be equal (left=100, right=200)")]
+    fn union_panics_m() {
+        let mut bf1 = BloomFilter::with_params(100, 2);
+        let bf2 = BloomFilter::with_params(200, 2);
+        bf1.union(&bf2);
+    }
+
+    #[test]
+    #[should_panic(expected = "buildhasher must be equal")]
+    fn union_panics_buildhasher() {
+        let mut bf1 = BloomFilter::with_params_and_hash(100, 2, BuildHasherSeeded::new(0));
+        let bf2 = BloomFilter::with_params_and_hash(100, 2, BuildHasherSeeded::new(1));
+        bf1.union(&bf2);
+    }
+
+    #[test]
     fn with_properties() {
         let bf = BloomFilter::with_properties(1000, 0.1);
         assert_eq!(bf.k(), 3);
         assert_eq!(bf.m(), 4792);
+    }
+
+    #[test]
+    #[should_panic(expected = "n must be greater than 0")]
+    fn with_properties_panics_n0() {
+        BloomFilter::with_properties(0, 0.1);
+    }
+
+    #[test]
+    #[should_panic(expected = "p (0) must be greater than 0 and smaller than 1")]
+    fn with_properties_panics_p0() {
+        BloomFilter::with_properties(1000, 0.);
+    }
+
+    #[test]
+    #[should_panic(expected = "p (1) must be greater than 0 and smaller than 1")]
+    fn with_properties_panics_p1() {
+        BloomFilter::with_properties(1000, 1.);
     }
 
     #[test]

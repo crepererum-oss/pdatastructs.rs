@@ -22,6 +22,8 @@ where
     /// Create new reservoir sampler that keeps `k` samples and uses `rng` for its random
     /// decisions.
     pub fn new(k: usize, rng: R) -> ReservoirSampling<T, R> {
+        assert!(k > 0, "k must be greater than 0");
+
         ReservoirSampling {
             k: k,
             rng: rng,
@@ -113,6 +115,12 @@ mod tests {
     use rand::{ChaChaRng, SeedableRng};
 
     #[test]
+    #[should_panic(expected = "k must be greater than 0")]
+    fn new_panics_k0() {
+        ReservoirSampling::<u64, ChaChaRng>::new(0, ChaChaRng::from_seed([0; 32]));
+    }
+
+    #[test]
     fn getter() {
         let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
         assert_eq!(rs.k(), 10);
@@ -200,5 +208,14 @@ mod tests {
             rs2.reservoir(),
             &vec![99, 99, 99, 99, 99, 99, 99, 99, 99, 99]
         );
+    }
+
+    #[test]
+    fn k1() {
+        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(1, ChaChaRng::from_seed([0; 32]));
+        for _ in 0..10 {
+            rs.add(1);
+        }
+        assert_eq!(rs.reservoir(), &vec![1]);
     }
 }

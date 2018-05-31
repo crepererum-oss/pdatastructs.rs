@@ -19,4 +19,4 @@ pub use countminsketch::{CountMinSketch, Counter};
 pub use hyperloglog::HyperLogLog;
 pub use reservoirsampling::ReservoirSampling;
 pub use topk::TopK;
-pub use utils::MyBuildHasherDefault;
+pub use utils::{BuildHasherSeeded, MyBuildHasherDefault};

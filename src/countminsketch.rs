@@ -128,9 +128,12 @@ where
         delta: f64,
         buildhasher: B,
     ) -> CountMinSketch<C, B> {
-        assert!(epsilon > 0.);
-        assert!(delta > 0.);
-        assert!(delta < 1.);
+        assert!(epsilon > 0., "epsilon must be greater than 0");
+        assert!(
+            (delta > 0.) & (delta < 1.),
+            "delta ({}) must be greater than 0 and smaller than 1",
+            delta
+        );
 
         let w = (f64::consts::E / epsilon).ceil() as usize;
         let d = (1. / delta).ln().ceil() as usize;
@@ -196,9 +199,20 @@ where
     ///
     /// Panics when `d`, `w` or `buildhasher` from `self` and `other` differ.
     pub fn merge(&mut self, other: &CountMinSketch<C, B>) {
-        assert_eq!(self.d, other.d);
-        assert_eq!(self.w, other.w);
-        assert!(self.buildhasher == other.buildhasher);
+        assert_eq!(
+            self.d, other.d,
+            "number of rows (d) must be equal (left={}, right={})",
+            self.d, other.d
+        );
+        assert_eq!(
+            self.w, other.w,
+            "number of columns (w) must be equal (left={}, right={})",
+            self.w, other.w
+        );
+        assert!(
+            self.buildhasher == other.buildhasher,
+            "buildhasher must be equal"
+        );
 
         self.table = self.table
             .iter()
@@ -233,6 +247,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::CountMinSketch;
+    use utils::BuildHasherSeeded;
 
     #[test]
     fn getter() {
@@ -247,6 +262,24 @@ mod tests {
         let cms = CountMinSketch::<usize>::with_point_query_properties(0.01, 0.1);
         assert_eq!(cms.w(), 272);
         assert_eq!(cms.d(), 3);
+    }
+
+    #[test]
+    #[should_panic(expected = "epsilon must be greater than 0")]
+    fn properties_panics_epsilon0() {
+        CountMinSketch::<usize>::with_point_query_properties(0., 0.1);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (0) must be greater than 0 and smaller than 1")]
+    fn properties_panics_delta0() {
+        CountMinSketch::<usize>::with_point_query_properties(0.01, 0.);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (1) must be greater than 0 and smaller than 1")]
+    fn properties_panics_delta1() {
+        CountMinSketch::<usize>::with_point_query_properties(0.01, 1.);
     }
 
     #[test]
@@ -322,6 +355,38 @@ mod tests {
         assert_eq!(cms1.query_point(&2), 22);
         assert_eq!(cms1.query_point(&3), 30);
         assert_eq!(cms1.query_point(&4), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "number of columns (w) must be equal (left=10, right=20)")]
+    fn merge_panics_w() {
+        let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
+        let cms2 = CountMinSketch::<usize>::with_params(20, 10);
+        cms1.merge(&cms2);
+    }
+
+    #[test]
+    #[should_panic(expected = "number of rows (d) must be equal (left=10, right=20)")]
+    fn merge_panics_d() {
+        let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
+        let cms2 = CountMinSketch::<usize>::with_params(10, 20);
+        cms1.merge(&cms2);
+    }
+
+    #[test]
+    #[should_panic(expected = "buildhasher must be equal")]
+    fn merge_panics_buildhasher() {
+        let mut cms1 = CountMinSketch::<usize, BuildHasherSeeded>::with_params_and_hasher(
+            10,
+            10,
+            BuildHasherSeeded::new(0),
+        );
+        let cms2 = CountMinSketch::<usize, BuildHasherSeeded>::with_params_and_hasher(
+            10,
+            10,
+            BuildHasherSeeded::new(1),
+        );
+        cms1.merge(&cms2);
     }
 
     #[test]
