@@ -3,7 +3,7 @@ use std::f64;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
 
-use num_traits::{CheckedAdd, One, Zero};
+use num_traits::{CheckedAdd, One, Unsigned, Zero};
 
 use utils::{HashIter, MyBuildHasherDefault};
 
@@ -15,7 +15,7 @@ use utils::{HashIter, MyBuildHasherDefault};
 #[derive(Clone)]
 pub struct CountMinSketch<C = usize, B = MyBuildHasherDefault<DefaultHasher>>
 where
-    C: CheckedAdd + Clone + One + Ord + Zero,
+    C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
     B: BuildHasher + Clone + Eq,
 {
     table: Vec<C>,
@@ -26,7 +26,7 @@ where
 
 impl<C> CountMinSketch<C>
 where
-    C: CheckedAdd + Clone + One + Ord + Zero,
+    C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
 {
     /// Create new CountMinSketch based on table size.
     ///
@@ -59,7 +59,7 @@ where
 
 impl<C, B> CountMinSketch<C, B>
 where
-    C: CheckedAdd + Clone + One + Ord + Zero,
+    C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `with_params` but with a specific `BuildHasher`.
