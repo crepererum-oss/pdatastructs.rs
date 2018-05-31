@@ -5,7 +5,8 @@
 #![deny(missing_docs)]
 
 extern crate fixedbitset;
-extern crate rand;
+pub extern crate num_traits;
+pub extern crate rand;
 
 mod bloomfilter;
 mod countminsketch;
@@ -15,7 +16,7 @@ mod topk;
 mod utils;
 
 pub use bloomfilter::BloomFilter;
-pub use countminsketch::{CountMinSketch, Counter};
+pub use countminsketch::CountMinSketch;
 pub use hyperloglog::HyperLogLog;
 pub use reservoirsampling::ReservoirSampling;
 pub use topk::TopK;

@@ -3,58 +3,9 @@ use std::f64;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
 
+use num_traits::{CheckedAdd, One, Zero};
+
 use utils::{HashIter, MyBuildHasherDefault};
-
-/// Abstract, but safe counter.
-pub trait Counter: Copy + fmt::Debug + Ord + Sized {
-    /// Add self to another counter.
-    ///
-    /// Returns `Some(Self)` when the addition was successfull (i.e. no overflow occured) and
-    /// `None` in case of an error.
-    fn checked_add(self, other: Self) -> Option<Self>;
-
-    /// Return a counter representing zero.
-    fn zero() -> Self;
-
-    /// Return a counter representing one.
-    fn one() -> Self;
-
-    /// Checks whether the counter is zero.
-    fn is_zero(&self) -> bool;
-}
-
-macro_rules! impl_counter {
-    ($t:ty) => {
-        impl Counter for $t {
-            #[inline]
-            fn checked_add(self, other: Self) -> Option<Self> {
-                self.checked_add(other)
-            }
-
-            #[inline]
-            fn zero() -> Self {
-                0
-            }
-
-            #[inline]
-            fn one() -> Self {
-                1
-            }
-
-            #[inline]
-            fn is_zero(&self) -> bool {
-                *self == 0
-            }
-        }
-    };
-}
-
-impl_counter!(usize);
-impl_counter!(u128);
-impl_counter!(u64);
-impl_counter!(u32);
-impl_counter!(u16);
-impl_counter!(u8);
 
 /// Simple implementation of a
 /// [Count-min sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
@@ -64,7 +15,7 @@ impl_counter!(u8);
 #[derive(Clone)]
 pub struct CountMinSketch<C = usize, B = MyBuildHasherDefault<DefaultHasher>>
 where
-    C: Counter,
+    C: CheckedAdd + Clone + One + Ord + Zero,
     B: BuildHasher + Clone + Eq,
 {
     table: Vec<C>,
@@ -75,7 +26,7 @@ where
 
 impl<C> CountMinSketch<C>
 where
-    C: Counter,
+    C: CheckedAdd + Clone + One + Ord + Zero,
 {
     /// Create new CountMinSketch based on table size.
     ///
@@ -108,7 +59,7 @@ where
 
 impl<C, B> CountMinSketch<C, B>
 where
-    C: Counter,
+    C: CheckedAdd + Clone + One + Ord + Zero,
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `with_params` but with a specific `BuildHasher`.
@@ -175,7 +126,7 @@ where
     {
         for (i, pos) in HashIter::new(self.w, self.d, obj, &self.buildhasher).enumerate() {
             let x = i * self.w + pos;
-            self.table[x] = self.table[x].checked_add(n).unwrap();
+            self.table[x] = self.table[x].checked_add(&n).unwrap();
         }
     }
 
@@ -187,7 +138,7 @@ where
         HashIter::new(self.w, self.d, obj, &self.buildhasher)
             .enumerate()
             .map(|(i, pos)| i * self.w + pos)
-            .map(|x| self.table[x])
+            .map(|x| self.table[x].clone())
             .min()
             .unwrap()
     }
@@ -217,7 +168,7 @@ where
         self.table = self.table
             .iter()
             .zip(other.table.iter())
-            .map(|x| x.0.checked_add(*x.1).unwrap())
+            .map(|x| x.0.checked_add(x.1).unwrap())
             .collect();
     }
 
