@@ -6,6 +6,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::rc::Rc;
 
+#[derive(Debug)]
 struct TreeEntry<T>
 where
     T: Eq + Ord,
