@@ -12,6 +12,7 @@ pub extern crate rand;
 
 mod bloomfilter;
 mod countminsketch;
+mod cuckoofilter;
 mod hyperloglog;
 mod reservoirsampling;
 mod topk;
@@ -19,6 +20,7 @@ mod utils;
 
 pub use bloomfilter::BloomFilter;
 pub use countminsketch::CountMinSketch;
+pub use cuckoofilter::{CuckooFilter, CuckooFilterFull};
 pub use hyperloglog::HyperLogLog;
 pub use reservoirsampling::ReservoirSampling;
 pub use topk::TopK;
