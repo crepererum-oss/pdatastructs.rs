@@ -1,9 +1,10 @@
+//! `HyperLogLog` implementation.
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 
-use utils::MyBuildHasherDefault;
+use hash_utils::MyBuildHasherDefault;
 
 /// A simple implementation of a [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 #[derive(Clone)]
@@ -178,7 +179,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::HyperLogLog;
-    use utils::BuildHasherSeeded;
+    use hash_utils::BuildHasherSeeded;
 
     #[test]
     #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 16")]

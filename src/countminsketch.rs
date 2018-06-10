@@ -1,3 +1,4 @@
+//! `CountMinSketch` implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::f64;
 use std::fmt;
@@ -5,7 +6,7 @@ use std::hash::{BuildHasher, Hash};
 
 use num_traits::{CheckedAdd, One, Zero};
 
-use utils::{HashIter, MyBuildHasherDefault};
+use hash_utils::{HashIter, MyBuildHasherDefault};
 
 /// Simple implementation of a
 /// [Count-min sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
@@ -198,7 +199,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::CountMinSketch;
-    use utils::BuildHasherSeeded;
+    use hash_utils::BuildHasherSeeded;
 
     #[test]
     fn getter() {

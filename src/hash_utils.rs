@@ -1,8 +1,17 @@
+//! Hash-related utils.
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker;
 
+/// `Iterator` that creates `h_i(x)` for a given value.
+///
+/// This can be used for algorithms and data structures that require you to implement multiple hash
+/// functions.
+///
+/// This is implemented by creating a new `Hash` for each result and seed it with an index value,
+/// hashing the actual payload and then finalizing the `Hash`.
+#[derive(Debug)]
 pub struct HashIter<'a, 'b, T, B>
 where
     T: 'a + Hash,
@@ -20,6 +29,13 @@ where
     T: 'a + Hash,
     B: 'b + BuildHasher,
 {
+    /// Create new `HashIter` with the following parameters:
+    ///
+    /// - `m`: the maximal result value of `h_i(x)`
+    /// - `k`: number of hash functions to generate
+    /// - `obj`: the object that should be hashed, i.e. `x` in `h_i(x)`
+    /// - `buildhasher`: `BuildHasher` used to construct new `Hash` objects, must be stable (i.e.
+    ///   create the same `Hash` object on every call)
     pub fn new(m: usize, k: usize, obj: &'a T, buildhasher: &'b B) -> HashIter<'a, 'b, T, B> {
         HashIter {
             m: m,
@@ -110,5 +126,28 @@ impl BuildHasher for BuildHasherSeeded {
         let mut h = DefaultHasher::default();
         h.write_usize(self.seed);
         h
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{HashIter, MyBuildHasherDefault};
+    use std::collections::hash_map::DefaultHasher;
+
+    #[test]
+    fn hash_iter() {
+        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let obj = 1337;
+
+        let iter1 = HashIter::new(42, 2, &obj, &bh);
+        let v1: Vec<usize> = iter1.collect();
+        assert_eq!(v1.len(), 2);
+        assert!(v1[0] < 42);
+        assert!(v1[1] < 42);
+        assert_ne!(v1[0], v1[1]);
+
+        let iter2 = HashIter::new(42, 2, &obj, &bh);
+        let v2: Vec<usize> = iter2.collect();
+        assert_eq!(v1, v2);
     }
 }

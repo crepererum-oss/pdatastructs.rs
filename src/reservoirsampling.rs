@@ -1,3 +1,4 @@
+//! `ReservoirSampling` implementation.
 use rand::Rng;
 use std::fmt;
 

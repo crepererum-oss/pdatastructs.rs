@@ -1,3 +1,4 @@
+//! `TopK` implementation.
 use countminsketch::CountMinSketch;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;

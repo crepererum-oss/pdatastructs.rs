@@ -1,3 +1,4 @@
+//! `CuckooFilter` implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -5,7 +6,7 @@ use std::mem;
 
 use rand::Rng;
 
-use utils::MyBuildHasherDefault;
+use hash_utils::MyBuildHasherDefault;
 
 // TODO: make fingerprint type a type param of CuckooFilter
 type Fingerprint = u8;

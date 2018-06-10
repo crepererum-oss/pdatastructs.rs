@@ -1,10 +1,11 @@
+//! `BloomFilter` implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
 
 use fixedbitset::FixedBitSet;
 
-use utils::{HashIter, MyBuildHasherDefault};
+use hash_utils::{HashIter, MyBuildHasherDefault};
 
 /// Simple implementation of a [BloomFilter](https://en.wikipedia.org/wiki/Bloom_filter)
 #[derive(Clone)]
@@ -177,7 +178,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::BloomFilter;
-    use utils::BuildHasherSeeded;
+    use hash_utils::BuildHasherSeeded;
 
     #[test]
     fn getter() {
