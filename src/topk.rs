@@ -1,3 +1,4 @@
+//! `TopK` implementation.
 use countminsketch::CountMinSketch;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
@@ -6,6 +7,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::rc::Rc;
 
+#[derive(Debug)]
 struct TreeEntry<T>
 where
     T: Eq + Ord,
