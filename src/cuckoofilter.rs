@@ -19,6 +19,7 @@ const MAX_NUM_KICKS: usize = 500; // mentioned in paper
 pub struct CuckooFilterFull;
 
 /// [`CuckooFilter`](https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf).
+#[derive(Clone)]
 pub struct CuckooFilter<R, B = MyBuildHasherDefault<DefaultHasher>>
 where
     R: Rng,
@@ -362,5 +363,17 @@ mod tests {
             format!("{:?}", cf),
             "CuckooFilter { bucketsize: 2, n_buckets: 16 }"
         );
+    }
+
+    #[test]
+    fn clone() {
+        let mut cf1 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16);
+        cf1.insert(&13).unwrap();
+        assert!(cf1.lookup(&13));
+
+        let cf2 = cf1.clone();
+        cf1.insert(&42).unwrap();
+        assert!(cf2.lookup(&13));
+        assert!(!cf2.lookup(&42));
     }
 }
