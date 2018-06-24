@@ -47,6 +47,26 @@ where
         let bh = MyBuildHasherDefault::<DefaultHasher>::default();
         Self::with_params_and_hash(rng, bucketsize, n_buckets, l_fingerprint, bh)
     }
+
+    /// Construct new `bucketsize=4`-cuckoofilter with properties:
+    ///
+    /// - `false_positive_rate`: false positive lookup rate
+    /// - `expected_elements`: number of expected elements to be added to the filter
+    /// - `rng`: random number generator used for certain random actions
+    pub fn with_properties_4(false_positive_rate: f64, expected_elements: usize, rng: R) -> Self {
+        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        Self::with_properties_and_hash_4(false_positive_rate, expected_elements, rng, bh)
+    }
+
+    /// Construct new `bucketsize=8`-cuckoofilter with properties:
+    ///
+    /// - `false_positive_rate`: false positive lookup rate
+    /// - `expected_elements`: number of expected elements to be added to the filter
+    /// - `rng`: random number generator used for certain random actions
+    pub fn with_properties_8(false_positive_rate: f64, expected_elements: usize, rng: R) -> Self {
+        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        Self::with_properties_and_hash_8(false_positive_rate, expected_elements, rng, bh)
+    }
 }
 
 impl<R, B> CuckooFilter<R, B>
@@ -100,6 +120,85 @@ where
             l_fingerprint: l_fingerprint,
             rng: rng,
         }
+    }
+
+    /// Construct new `bucketsize=4`-cuckoofilter with properties:
+    ///
+    /// - `false_positive_rate`: false positive lookup rate
+    /// - `expected_elements`: number of expected elements to be added to the filter
+    /// - `rng`: random number generator used for certain random actions
+    /// - `bh`: BuildHasher that creates Hash objects, used for fingerprint creation and
+    ///   fingerprint hashing
+    pub fn with_properties_and_hash_4(
+        false_positive_rate: f64,
+        expected_elements: usize,
+        rng: R,
+        bh: B,
+    ) -> Self {
+        let bucketsize = 4usize;
+        let load_factor = 0.95f64;
+        Self::with_properties_and_hash_n(
+            bucketsize,
+            load_factor,
+            false_positive_rate,
+            expected_elements,
+            rng,
+            bh,
+        )
+    }
+
+    /// Construct new `bucketsize=8`-cuckoofilter with properties:
+    ///
+    /// - `false_positive_rate`: false positive lookup rate
+    /// - `expected_elements`: number of expected elements to be added to the filter
+    /// - `rng`: random number generator used for certain random actions
+    /// - `bh`: BuildHasher that creates Hash objects, used for fingerprint creation and
+    ///   fingerprint hashing
+    pub fn with_properties_and_hash_8(
+        false_positive_rate: f64,
+        expected_elements: usize,
+        rng: R,
+        bh: B,
+    ) -> Self {
+        let bucketsize = 8usize;
+        let load_factor = 0.98f64;
+        Self::with_properties_and_hash_n(
+            bucketsize,
+            load_factor,
+            false_positive_rate,
+            expected_elements,
+            rng,
+            bh,
+        )
+    }
+
+    fn with_properties_and_hash_n(
+        bucketsize: usize,
+        load_factor: f64,
+        false_positive_rate: f64,
+        expected_elements: usize,
+        rng: R,
+        bh: B,
+    ) -> Self {
+        assert!(
+            expected_elements >= 1,
+            "expected_elements ({}) must be at least 1",
+            expected_elements
+        );
+        assert!(
+            (false_positive_rate > 0.) && (false_positive_rate < 1.),
+            "false_positive_rate ({}) must be greater than 0 and smaller than 1",
+            false_positive_rate
+        );
+
+        let l_fingerprint = (2.0 * (bucketsize as f64) / false_positive_rate)
+            .log2()
+            .ceil() as usize;
+        let costs = (l_fingerprint as f64) / load_factor;
+        let n_buckets = ((costs * (expected_elements as f64) / (l_fingerprint as f64)).ceil()
+            as usize)
+            .next_power_of_two();
+        Self::with_params_and_hash(rng, bucketsize, n_buckets, l_fingerprint, bh)
     }
 
     /// Number of entries stored in a bucket.
@@ -473,5 +572,39 @@ mod tests {
         cf1.insert(&42).unwrap();
         assert!(cf2.lookup(&13));
         assert!(!cf2.lookup(&42));
+    }
+
+    #[test]
+    fn with_properties_4() {
+        let cf = CuckooFilter::with_properties_4(0.02, 1000, ChaChaRng::from_seed([0; 32]));
+        assert_eq!(cf.bucketsize(), 4);
+        assert_eq!(cf.n_buckets(), 2048);
+        assert_eq!(cf.l_fingerprint(), 9);
+    }
+
+    #[test]
+    fn with_properties_8() {
+        let cf = CuckooFilter::with_properties_8(0.02, 1000, ChaChaRng::from_seed([0; 32]));
+        assert_eq!(cf.bucketsize(), 8);
+        assert_eq!(cf.n_buckets(), 1024);
+        assert_eq!(cf.l_fingerprint(), 10);
+    }
+
+    #[test]
+    #[should_panic(expected = "expected_elements (0) must be at least 1")]
+    fn with_properties_4_panics_expected_elements_0() {
+        CuckooFilter::with_properties_4(0.02, 0, ChaChaRng::from_seed([0; 32]));
+    }
+
+    #[test]
+    #[should_panic(expected = "false_positive_rate (0) must be greater than 0 and smaller than 1")]
+    fn with_properties_4_panics_false_positive_rate_0() {
+        CuckooFilter::with_properties_4(0., 1000, ChaChaRng::from_seed([0; 32]));
+    }
+
+    #[test]
+    #[should_panic(expected = "false_positive_rate (1) must be greater than 0 and smaller than 1")]
+    fn with_properties_4_panics_false_positive_rate_1() {
+        CuckooFilter::with_properties_4(1., 1000, ChaChaRng::from_seed([0; 32]));
     }
 }
