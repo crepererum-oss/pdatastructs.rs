@@ -33,7 +33,7 @@ where
     ///
     /// - `w` sets the number of columns
     /// - `d` sets the number of rows
-    pub fn with_params(w: usize, d: usize) -> CountMinSketch<C> {
+    pub fn with_params(w: usize, d: usize) -> Self {
         let bh = MyBuildHasherDefault::<DefaultHasher>::default();
         Self::with_params_and_hasher(w, d, bh)
     }
@@ -52,7 +52,7 @@ where
     /// - `delta > 0` and `delta < 1`
     ///
     /// Panics when the input conditions do not hold.
-    pub fn with_point_query_properties(epsilon: f64, delta: f64) -> CountMinSketch<C> {
+    pub fn with_point_query_properties(epsilon: f64, delta: f64) -> Self {
         let bh = MyBuildHasherDefault::<DefaultHasher>::default();
         Self::with_point_query_properties_and_hasher(epsilon, delta, bh)
     }
@@ -64,13 +64,13 @@ where
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `with_params` but with a specific `BuildHasher`.
-    pub fn with_params_and_hasher(w: usize, d: usize, buildhasher: B) -> CountMinSketch<C, B> {
+    pub fn with_params_and_hasher(w: usize, d: usize, buildhasher: B) -> Self {
         let table = vec![C::zero(); w.checked_mul(d).unwrap()];
-        CountMinSketch {
-            table: table,
-            w: w,
-            d: d,
-            buildhasher: buildhasher,
+        Self {
+            table,
+            w,
+            d,
+            buildhasher,
         }
     }
 
@@ -79,7 +79,7 @@ where
         epsilon: f64,
         delta: f64,
         buildhasher: B,
-    ) -> CountMinSketch<C, B> {
+    ) -> Self {
         assert!(epsilon > 0., "epsilon must be greater than 0");
         assert!(
             (delta > 0.) & (delta < 1.),
@@ -117,17 +117,17 @@ where
     where
         T: Hash,
     {
-        self.add_n(&obj, C::one())
+        self.add_n(&obj, &C::one())
     }
 
     /// Add `n` to the counter of the given element.
-    pub fn add_n<T>(&mut self, obj: &T, n: C)
+    pub fn add_n<T>(&mut self, obj: &T, n: &C)
     where
         T: Hash,
     {
         for (i, pos) in HashIter::new(self.w, self.d, obj, &self.buildhasher).enumerate() {
             let x = i * self.w + pos;
-            self.table[x] = self.table[x].checked_add(&n).unwrap();
+            self.table[x] = self.table[x].checked_add(n).unwrap();
         }
     }
 
@@ -150,7 +150,7 @@ where
     /// elements from `self` and `other`.
     ///
     /// Panics when `d`, `w` or `buildhasher` from `self` and `other` differ.
-    pub fn merge(&mut self, other: &CountMinSketch<C, B>) {
+    pub fn merge(&mut self, other: &Self) {
         assert_eq!(
             self.d, other.d,
             "number of rows (d) must be equal (left={}, right={})",
@@ -276,7 +276,7 @@ mod tests {
     fn add_2_1b() {
         let mut cms = CountMinSketch::<usize>::with_params(10, 10);
 
-        cms.add_n(&1, 2);
+        cms.add_n(&1, &2);
         cms.add(&2);
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 1);
@@ -288,15 +288,15 @@ mod tests {
         let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
         let mut cms2 = CountMinSketch::<usize>::with_params(10, 10);
 
-        cms1.add_n(&1, 1);
-        cms1.add_n(&2, 2);
+        cms1.add_n(&1, &1);
+        cms1.add_n(&2, &2);
         assert_eq!(cms1.query_point(&1), 1);
         assert_eq!(cms1.query_point(&2), 2);
         assert_eq!(cms1.query_point(&3), 0);
         assert_eq!(cms1.query_point(&4), 0);
 
-        cms2.add_n(&2, 20);
-        cms2.add_n(&3, 30);
+        cms2.add_n(&2, &20);
+        cms2.add_n(&3, &30);
         assert_eq!(cms2.query_point(&1), 0);
         assert_eq!(cms2.query_point(&2), 20);
         assert_eq!(cms2.query_point(&3), 30);

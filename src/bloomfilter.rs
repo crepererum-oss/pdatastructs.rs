@@ -23,7 +23,7 @@ impl BloomFilter {
     ///
     /// - `k` is the number of hash functions
     /// - `m` is the number of bits used to store state
-    pub fn with_params(m: usize, k: usize) -> BloomFilter {
+    pub fn with_params(m: usize, k: usize) -> Self {
         let bh = MyBuildHasherDefault::<DefaultHasher>::default();
         Self::with_params_and_hash(m, k, bh)
     }
@@ -35,7 +35,7 @@ impl BloomFilter {
     ///   elements, must be `> 0` and `< 1`
     ///
     /// Panics if the parameters are not in range.
-    pub fn with_properties(n: usize, p: f64) -> BloomFilter {
+    pub fn with_properties(n: usize, p: f64) -> Self {
         let bh = MyBuildHasherDefault::<DefaultHasher>::default();
         Self::with_properties_and_hash(n, p, bh)
     }
@@ -46,16 +46,16 @@ where
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `with_params` but with specific `BuildHasher`.
-    pub fn with_params_and_hash(m: usize, k: usize, buildhasher: B) -> BloomFilter<B> {
-        BloomFilter {
+    pub fn with_params_and_hash(m: usize, k: usize, buildhasher: B) -> Self {
+        Self {
             bs: FixedBitSet::with_capacity(m),
-            k: k,
-            buildhasher: buildhasher,
+            k,
+            buildhasher,
         }
     }
 
     /// Same as `with_properties` but with specific `BuildHasher`.
-    pub fn with_properties_and_hash(n: usize, p: f64, buildhasher: B) -> BloomFilter<B> {
+    pub fn with_properties_and_hash(n: usize, p: f64, buildhasher: B) -> Self {
         assert!(n > 0, "n must be greater than 0");
         assert!(
             (p > 0.) & (p < 1.),
@@ -127,7 +127,7 @@ where
     /// place.
     ///
     /// Panics if `k`,`m` or `buildhasher` of the two BloomFilters are not identical.
-    pub fn union(&mut self, other: &BloomFilter<B>) {
+    pub fn union(&mut self, other: &Self) {
         assert_eq!(
             self.k, other.k,
             "k must be equal (left={}, right={})",

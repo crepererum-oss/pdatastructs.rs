@@ -1,4 +1,5 @@
 //! `HyperLogLog` implementation.
+use bytecount;
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
@@ -24,7 +25,7 @@ impl HyperLogLog {
     ///   HyperLogLog will be `2^b`. `b` must be in `[4, 16]`
     ///
     /// Panics when `b` is out of bounds.
-    pub fn new(b: usize) -> HyperLogLog {
+    pub fn new(b: usize) -> Self {
         let bh = MyBuildHasherDefault::<DefaultHasher>::default();
         Self::with_hash(b, bh)
     }
@@ -35,7 +36,7 @@ where
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `new` but with a specific `BuildHasher`.
-    pub fn with_hash(b: usize, buildhasher: B) -> HyperLogLog<B> {
+    pub fn with_hash(b: usize, buildhasher: B) -> Self {
         assert!(
             (b >= 4) & (b <= 16),
             "b ({}) must be larger or equal than 4 and smaller or equal than 16",
@@ -44,10 +45,10 @@ where
 
         let m = (1 as usize) << b;
         let registers = vec![0; m];
-        HyperLogLog {
-            registers: registers,
-            b: b,
-            buildhasher: buildhasher,
+        Self {
+            registers,
+            b,
+            buildhasher,
         }
     }
 
@@ -89,7 +90,7 @@ where
 
         let z = 1f64 / self.registers
             .iter()
-            .map(|&x| 2f64.powi(-(x as i32)))
+            .map(|&x| 2f64.powi(-(i32::from(x))))
             .sum::<f64>();
 
         let am = if m >= 128. {
@@ -106,7 +107,7 @@ where
 
         let e_star = if e <= 5. / 2. * m {
             // small range correction
-            let v = self.registers.iter().filter(|&&x| x == 0).count();
+            let v = bytecount::count(&self.registers, 0);
             if v != 0 {
                 m * (m / (v as f64)).ln()
             } else {
@@ -117,7 +118,7 @@ where
             e
         } else {
             // large range correction
-            -2f64.powi(32) * (1. - e / 2f64.powi(32)).ln()
+            -(2f64.powi(32)) * (1. - e / 2f64.powi(32)).ln()
         };
 
         e_star as usize
@@ -129,7 +130,7 @@ where
     /// directly added to `self`.
     ///
     /// Panics when `b` or `buildhasher` parameter of `self` and `other` do not match.
-    pub fn merge(&mut self, other: &HyperLogLog<B>) {
+    pub fn merge(&mut self, other: &Self) {
         assert_eq!(
             self.b, other.b,
             "b must be equal (left={}, right={})",

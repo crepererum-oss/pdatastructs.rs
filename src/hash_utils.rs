@@ -36,13 +36,13 @@ where
     /// - `obj`: the object that should be hashed, i.e. `x` in `h_i(x)`
     /// - `buildhasher`: `BuildHasher` used to construct new `Hash` objects, must be stable (i.e.
     ///   create the same `Hash` object on every call)
-    pub fn new(m: usize, k: usize, obj: &'a T, buildhasher: &'b B) -> HashIter<'a, 'b, T, B> {
-        HashIter {
-            m: m,
-            k: k,
+    pub fn new(m: usize, k: usize, obj: &'a T, buildhasher: &'b B) -> Self {
+        Self {
+            m,
+            k,
             i: 0,
-            obj: obj,
-            buildhasher: buildhasher,
+            obj,
+            buildhasher,
         }
     }
 }
@@ -115,7 +115,7 @@ pub struct BuildHasherSeeded {
 impl BuildHasherSeeded {
     /// Create new BuildHasherSeeded with given seed.
     pub fn new(seed: usize) -> Self {
-        Self { seed: seed }
+        Self { seed }
     }
 }
 

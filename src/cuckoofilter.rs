@@ -115,10 +115,10 @@ where
             table: FixedBitSet::with_capacity(table_size),
             n_elements: 0,
             buildhasher: bh,
-            bucketsize: bucketsize,
-            n_buckets: n_buckets,
-            l_fingerprint: l_fingerprint,
-            rng: rng,
+            bucketsize,
+            n_buckets,
+            l_fingerprint,
+            rng,
         }
     }
 
@@ -217,7 +217,7 @@ where
     }
 
     /// Check if CuckooFilter is empty, i.e. contains no elements.
-    pub fn empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.n_elements == 0
     }
 
@@ -263,7 +263,7 @@ where
             self.table_write(x, f);
             f = tmp;
 
-            i = i ^ self.hash(&f);
+            i ^= self.hash(&f);
             if self.write_to_bucket(i, f) {
                 self.n_elements += 1;
                 return Ok(());
@@ -505,9 +505,9 @@ mod tests {
     }
 
     #[test]
-    fn empty() {
+    fn is_empty() {
         let cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
-        assert!(cf.empty());
+        assert!(cf.is_empty());
         assert_eq!(cf.len(), 0);
     }
 
@@ -515,7 +515,7 @@ mod tests {
     fn insert() {
         let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         cf.insert(&13).unwrap();
-        assert!(!cf.empty());
+        assert!(!cf.is_empty());
         assert_eq!(cf.len(), 1);
         assert!(cf.lookup(&13));
         assert!(!cf.lookup(&42));
