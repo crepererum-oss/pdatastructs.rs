@@ -22,12 +22,12 @@ where
 {
     /// Create new reservoir sampler that keeps `k` samples and uses `rng` for its random
     /// decisions.
-    pub fn new(k: usize, rng: R) -> ReservoirSampling<T, R> {
+    pub fn new(k: usize, rng: R) -> Self {
         assert!(k > 0, "k must be greater than 0");
 
-        ReservoirSampling {
-            k: k,
-            rng: rng,
+        Self {
+            k,
+            rng,
             reservoir: vec![],
             i: 0,
             skip_until: 0,

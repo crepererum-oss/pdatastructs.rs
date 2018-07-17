@@ -115,10 +115,10 @@ where
             table: FixedBitSet::with_capacity(table_size),
             n_elements: 0,
             buildhasher: bh,
-            bucketsize: bucketsize,
-            n_buckets: n_buckets,
-            l_fingerprint: l_fingerprint,
-            rng: rng,
+            bucketsize,
+            n_buckets,
+            l_fingerprint,
+            rng,
         }
     }
 

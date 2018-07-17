@@ -25,7 +25,7 @@ impl HyperLogLog {
     ///   HyperLogLog will be `2^b`. `b` must be in `[4, 16]`
     ///
     /// Panics when `b` is out of bounds.
-    pub fn new(b: usize) -> HyperLogLog {
+    pub fn new(b: usize) -> Self {
         let bh = MyBuildHasherDefault::<DefaultHasher>::default();
         Self::with_hash(b, bh)
     }
@@ -36,7 +36,7 @@ where
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `new` but with a specific `BuildHasher`.
-    pub fn with_hash(b: usize, buildhasher: B) -> HyperLogLog<B> {
+    pub fn with_hash(b: usize, buildhasher: B) -> Self {
         assert!(
             (b >= 4) & (b <= 16),
             "b ({}) must be larger or equal than 4 and smaller or equal than 16",
@@ -45,10 +45,10 @@ where
 
         let m = (1 as usize) << b;
         let registers = vec![0; m];
-        HyperLogLog {
-            registers: registers,
-            b: b,
-            buildhasher: buildhasher,
+        Self {
+            registers,
+            b,
+            buildhasher,
         }
     }
 
@@ -130,7 +130,7 @@ where
     /// directly added to `self`.
     ///
     /// Panics when `b` or `buildhasher` parameter of `self` and `other` do not match.
-    pub fn merge(&mut self, other: &HyperLogLog<B>) {
+    pub fn merge(&mut self, other: &Self) {
         assert_eq!(
             self.b, other.b,
             "b must be equal (left={}, right={})",
