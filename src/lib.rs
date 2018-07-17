@@ -6,6 +6,7 @@
 #![deny(missing_docs)]
 #![deny(unused_extern_crates)]
 
+extern crate bytecount;
 extern crate fixedbitset;
 pub extern crate num_traits;
 pub extern crate rand;

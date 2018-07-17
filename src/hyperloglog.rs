@@ -1,4 +1,5 @@
 //! `HyperLogLog` implementation.
+use bytecount;
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
@@ -106,7 +107,7 @@ where
 
         let e_star = if e <= 5. / 2. * m {
             // small range correction
-            let v = self.registers.iter().filter(|&&x| x == 0).count();
+            let v = bytecount::count(&self.registers, 0);
             if v != 0 {
                 m * (m / (v as f64)).ln()
             } else {
