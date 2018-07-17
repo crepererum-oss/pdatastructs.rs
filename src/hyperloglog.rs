@@ -90,7 +90,7 @@ where
 
         let z = 1f64 / self.registers
             .iter()
-            .map(|&x| 2f64.powi(-(x as i32)))
+            .map(|&x| 2f64.powi(-(i32::from(x))))
             .sum::<f64>();
 
         let am = if m >= 128. {
@@ -118,7 +118,7 @@ where
             e
         } else {
             // large range correction
-            -2f64.powi(32) * (1. - e / 2f64.powi(32)).ln()
+            -(2f64.powi(32)) * (1. - e / 2f64.powi(32)).ln()
         };
 
         e_star as usize

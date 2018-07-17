@@ -263,7 +263,7 @@ where
             self.table_write(x, f);
             f = tmp;
 
-            i = i ^ self.hash(&f);
+            i ^= self.hash(&f);
             if self.write_to_bucket(i, f) {
                 self.n_elements += 1;
                 return Ok(());

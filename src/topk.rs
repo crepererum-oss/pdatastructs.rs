@@ -90,20 +90,20 @@ where
     ///   hold. Refer to its documentation about parameter selection.
     ///
     /// Panics if `k == 0`.
-    pub fn new(k: usize, cms: CountMinSketch) -> TopK<T> {
+    pub fn new(k: usize, cms: CountMinSketch) -> Self {
         assert!(k > 0, "k must be greater than 0");
 
-        TopK {
-            cms: cms,
+        Self {
+            cms,
             obj2count: HashMap::new(),
             tree: BTreeSet::new(),
-            k: k,
+            k,
         }
     }
 
     /// Number of data points to remember.
     pub fn k(&self) -> usize {
-        return self.k;
+        self.k
     }
 
     /// Observe a data point.
