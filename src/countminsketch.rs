@@ -117,17 +117,17 @@ where
     where
         T: Hash,
     {
-        self.add_n(&obj, C::one())
+        self.add_n(&obj, &C::one())
     }
 
     /// Add `n` to the counter of the given element.
-    pub fn add_n<T>(&mut self, obj: &T, n: C)
+    pub fn add_n<T>(&mut self, obj: &T, n: &C)
     where
         T: Hash,
     {
         for (i, pos) in HashIter::new(self.w, self.d, obj, &self.buildhasher).enumerate() {
             let x = i * self.w + pos;
-            self.table[x] = self.table[x].checked_add(&n).unwrap();
+            self.table[x] = self.table[x].checked_add(n).unwrap();
         }
     }
 
@@ -276,7 +276,7 @@ mod tests {
     fn add_2_1b() {
         let mut cms = CountMinSketch::<usize>::with_params(10, 10);
 
-        cms.add_n(&1, 2);
+        cms.add_n(&1, &2);
         cms.add(&2);
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 1);
@@ -288,15 +288,15 @@ mod tests {
         let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
         let mut cms2 = CountMinSketch::<usize>::with_params(10, 10);
 
-        cms1.add_n(&1, 1);
-        cms1.add_n(&2, 2);
+        cms1.add_n(&1, &1);
+        cms1.add_n(&2, &2);
         assert_eq!(cms1.query_point(&1), 1);
         assert_eq!(cms1.query_point(&2), 2);
         assert_eq!(cms1.query_point(&3), 0);
         assert_eq!(cms1.query_point(&4), 0);
 
-        cms2.add_n(&2, 20);
-        cms2.add_n(&3, 30);
+        cms2.add_n(&2, &20);
+        cms2.add_n(&3, &30);
         assert_eq!(cms2.query_point(&1), 0);
         assert_eq!(cms2.query_point(&2), 20);
         assert_eq!(cms2.query_point(&3), 30);
