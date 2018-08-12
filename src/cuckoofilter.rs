@@ -1,4 +1,4 @@
-//! `CuckooFilter` implementation.
+//! CuckooFilter implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -15,7 +15,120 @@ const MAX_NUM_KICKS: usize = 500; // mentioned in paper
 #[derive(Debug)]
 pub struct CuckooFilterFull;
 
-/// [`CuckooFilter`](https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf).
+/// A CuckooFilter is a set-like data structure, that keeps track of elements it has seen without
+/// the need to store them. Looking up values has a certain false positive rate, but a false
+/// negative rate of 0%. Also, it is "Practically Better Than Bloom" (see paper).
+///
+/// # Examples
+/// ```
+/// use pdatastructs::cuckoofilter::CuckooFilter;
+/// use pdatastructs::rand::{ChaChaRng, SeedableRng};
+///
+/// // set up filter
+/// let false_positive_rate = 0.02;  // = 2%
+/// let expected_elements = 1000;
+/// let rng = ChaChaRng::from_seed([0; 32]);
+/// let mut filter = CuckooFilter::with_properties_8(false_positive_rate, expected_elements, rng);
+///
+/// // add some data
+/// filter.insert(&"my super long string");
+///
+/// // later
+/// assert!(filter.lookup(&"my super long string"));
+/// assert!(!filter.lookup(&"another super long string"));
+/// ```
+///
+/// # Applications
+/// Same as BloomFilter.
+///
+/// # How It Works
+///
+/// ## Setup
+/// The filter is created by a table of `b` buckets, each bucket having `s` slots. Every slot can
+/// hold `n` bits, all set to 0 in the beginning.
+///
+/// ```text
+/// b = 4
+/// s = 2
+/// n = 4
+///
+/// +-----+-----+
+/// | 0x0 | 0x0 |
+/// +-----+-----+
+/// | 0x0 | 0x0 |
+/// +-----+-----+
+/// | 0x0 | 0x0 |
+/// +-----+-----+
+/// | 0x0 | 0x0 |
+/// +-----+-----+
+/// ```
+///
+/// ## Insertion
+/// During the insertion, a fingerprint of `n` bits is calculated. Furthermore, there are 2 hash
+/// functions. The first one is calculated by an external hash function (e.g. SipHash), the other
+/// is the XOR of the fingerprint and the first hash. That way, you can switch between the 2 hash
+/// functions by XORing with the fingerprint.
+///
+/// The 2 hash functions address 2 candidate buckets. If one has a free slot, the fingerprint will
+/// be added there and we are done.
+///
+/// ```text
+/// f(x)  = 0x3
+/// h_1(x) = 0x0
+/// h_2(x) = (h_1(x) ^ f(x)) & 0x3 = (0x0 ^ 0x3) & 0x3 = 0x3
+///
+/// +-----+-----+       +-----+-----+
+/// |[0x0]| 0x0 |       | 0x3 | 0x0 |
+/// +-----+-----+       +-----+-----+
+/// | 0x0 | 0x0 |       | 0x0 | 0x0 |
+/// +-----+-----+  ==>  +-----+-----+
+/// | 0x0 | 0x0 |       | 0x0 | 0x0 |
+/// +-----+-----+       +-----+-----+
+/// |[0x0]| 0x0 |       | 0x0 | 0x0 |
+/// +-----+-----+       +-----+-----+
+/// ```
+///
+/// It can occur that different elements address the same buckets. The fingerprint helps to
+/// distinguish between them.
+///
+/// ```text
+/// f(x)  = 0x7
+/// h_1(x) = 0x0
+/// h_2(x) = (h_1(x) ^ f(x)) & 0x3 = (0x0 ^ 0x7) & 0x3 = 0x3
+///
+/// +-----+-----+       +-----+-----+
+/// |[0x0]| 0x0 |       | 0x3 | 0x7 |
+/// +-----+-----+       +-----+-----+
+/// | 0x0 | 0x0 |       | 0x0 | 0x0 |
+/// +-----+-----+  ==>  +-----+-----+
+/// | 0x0 | 0x0 |       | 0x0 | 0x0 |
+/// +-----+-----+       +-----+-----+
+/// |[0x0]| 0x0 |       | 0x0 | 0x0 |
+/// +-----+-----+       +-----+-----+
+/// ```
+///
+/// If none of the 2 candidate buckets has a free slot, the algorithm tries to relocate existing
+/// fingerprints by swapping hash functions (remember that `h_i(x) = h_j(x) ^ f(x)`). The element
+/// to relocate is chosen randomly.
+///
+/// ## Lookup
+/// Hash functions are calculated as shown above and if one of the buckets contains the
+/// fingerprint, the element may be in the filter.
+///
+/// # Implementation
+/// This implementation uses one large bit-vector to pack all fingerprints to be as space-efficient
+/// as possible. So even odd fingerprints sizes like 5 result in optimal memory consumption.
+///
+/// # See Also
+/// - `std::collections::HashSet`: has a false positive rate of 0%, but also needs to store all
+///   elements
+/// - `pdatastructs::bloomfilter::BloomFilter`: simpler data structure, but might have worse false
+///   positive rates
+///
+/// # References
+/// - [Probabilistic Filters By Example](https://bdupras.github.io/filter-tutorial/)
+/// - ["Cuckoo Filter: Practically Better Than Bloom", Bin Fan, David G. Andersen, Michael
+///   Kaminsky, Michael D. Mitzenmacher, 2014](https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf).
 #[derive(Clone)]
 pub struct CuckooFilter<R, B = MyBuildHasherDefault<DefaultHasher>>
 where
