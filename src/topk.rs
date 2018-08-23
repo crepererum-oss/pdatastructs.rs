@@ -37,11 +37,7 @@ where
     }
 }
 
-impl<T> Eq for TreeEntry<T>
-where
-    T: Eq + Ord,
-{
-}
+impl<T> Eq for TreeEntry<T> where T: Eq + Ord {}
 
 impl<T> PartialOrd for TreeEntry<T>
 where

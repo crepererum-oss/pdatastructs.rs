@@ -260,7 +260,8 @@ where
             "buildhasher must be equal"
         );
 
-        self.table = self.table
+        self.table = self
+            .table
             .iter()
             .zip(other.table.iter())
             .map(|x| x.0.checked_add(x.1).unwrap())
