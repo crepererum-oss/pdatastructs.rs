@@ -1,9 +1,62 @@
-//! `ReservoirSampling` implementation.
+//! ReservoirSampling implementation.
 use rand::Rng;
 use std::fmt;
 
-/// Simple implementation of [Reservoir Sampling](https://en.wikipedia.org/wiki/Reservoir_sampling)
-/// with [fast approximation](https://erikerlandson.github.io/blog/2015/11/20/very-fast-reservoir-sampling/)
+/// A ReservoirSampling is a data-structure that samples a fixed number of elements from a data
+/// stream, without the need to memorize any additional elements.
+///
+/// # Examples
+/// ```
+/// use pdatastructs::reservoirsampling::ReservoirSampling;
+/// use pdatastructs::rand::{ChaChaRng, SeedableRng};
+///
+/// // set up sampler for 10 elements
+/// let rng = ChaChaRng::from_seed([0; 32]);
+/// let mut sampler = ReservoirSampling::new(10, rng);
+///
+/// // add some data
+/// for i in 0..1000 {
+///     let x = i % 2;
+///     sampler.add(x);
+/// }
+///
+/// // later
+/// assert_eq!(sampler.reservoir().iter().sum::<i64>(), 5);
+/// ```
+///
+/// # Applications
+/// - Getting a set of representative samples of a large data set.
+/// - Collecting distribution information of a stream of data, which can then recover approximative
+///   histograms or CDFs (Cumulative Distribution Function).
+///
+/// # How It Works
+///
+/// ## Setup
+/// The sampler is initialized with an empty reservoir vector and a potential capacity `k`.
+///
+/// ## Insertion
+/// If the sampler did see less than `k` elements, the element is appended to the reservoir vector,
+/// so no sampling takes place (full take).
+///
+/// After the reservoir is filled up with `k` elements, the "normal reservoir sampling" phase
+/// starts until `t = k * 4` elements were processed. In this phase, every incoming element
+/// replaces may replace a random, existing element in the reservoir, iff a random number `x in [1,
+/// i]` (i being the number of seen elements) is smaller or equal to `k`.
+///
+/// In the final phase, not every new incoming element may processed. Instead, some elements are
+/// skipped. The number of skipped elements is chosen randomly but with respect to the number of
+/// seen elements. Every non-skipped element replaces a random, existing element of the reservoir.
+///
+/// ## Read-Out
+/// The reservoir vector is just returned, no further calculation is required.
+///
+/// # See Also
+/// - `std::vec::Vec`: can be used to get an exact sampling but needs to store all elements of the
+///   incoming data stream
+///
+/// # References
+/// - ["Very Fast Reservoir Sampling", Erik Erlandson, 2015](https://erikerlandson.github.io/blog/2015/11/20/very-fast-reservoir-sampling/)
+/// - [Wikipedia: Reservoir Sampling](https://en.wikipedia.org/wiki/Reservoir_sampling)
 #[derive(Clone)]
 pub struct ReservoirSampling<T, R>
 where
