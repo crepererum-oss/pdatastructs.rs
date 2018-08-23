@@ -140,7 +140,8 @@ where
     pub fn count(&self) -> usize {
         let m = self.registers.len() as f64;
 
-        let z = 1f64 / self.registers
+        let z = 1f64 / self
+            .registers
             .iter()
             .map(|&x| 2f64.powi(-(i32::from(x))))
             .sum::<f64>();
@@ -193,7 +194,8 @@ where
             "buildhasher must be equal"
         );
 
-        self.registers = self.registers
+        self.registers = self
+            .registers
             .iter()
             .zip(other.registers.iter())
             .map(|x| cmp::max(x.0, x.1))
