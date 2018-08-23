@@ -3,7 +3,16 @@ name = "pdatastructs"
 version = "0.3.0"
 authors = ["Marco Neumann <marco@crepererum.net>"]
 license = "MIT/Apache-2.0"
-keywords = ["bloomfilter", "countminsketch", "cuckoofilter", "hyperloglog", "reservoirsampling", "topk"]
+keywords = [
+    "bloomfilter",
+    "countminsketch",
+    "cuckoofilter",
+    "filter",
+    "hyperloglog",
+    "reservoirsampling",
+    "sketch",
+    "topk",
+]
 categories = ["data-structures"]
 description = "Simple probabilistic data structures"
 repository = "https://github.com/crepererum/pdatastructs.rs"
