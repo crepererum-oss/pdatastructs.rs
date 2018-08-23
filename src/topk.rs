@@ -1,4 +1,4 @@
-//! `TopK` implementation.
+//! TopK implementation.
 use countminsketch::CountMinSketch;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
@@ -65,9 +65,59 @@ where
     }
 }
 
-/// Top-K implementation.
+/// A TopK is a data structure keeps the `k` most frequent data points of a stream.
 ///
-/// This data structure keeps the `k` most frequent data points of a stream.
+/// # Examples
+/// ```
+/// use pdatastructs::countminsketch::CountMinSketch;
+/// use pdatastructs::topk::TopK;
+///
+/// // set up filter
+/// let epsilon = 0.1;  // error threshold
+/// let delta = 0.2;  // epsilon is hit in (1 - 0.2) * 100% = 80%
+/// let mut cms = CountMinSketch::with_point_query_properties(epsilon, delta);
+/// let mut tk = TopK::new(2, cms);
+///
+/// // add some data
+/// for i in 0..1000 {
+///     let x = i % 10;
+///     let y = if x < 4 {
+///         0
+///     } else if x < 7 {
+///         1
+///     } else {
+///         x
+///     };
+///     tk.add(x);
+/// }
+///
+/// // later
+/// let elements: Vec<u64> = tk.iter().collect();
+/// assert_eq!(elements, vec![0, 1]);
+/// ```
+///
+/// # Applications
+/// - getting a fixed number of most common example of a large data set
+/// - detect hotspots / very common events
+///
+/// # How It Works
+/// The data structure is based on two parts:
+///
+/// 1. a reservoir for the most common elements that also stores precise (but not exact) counter
+///    data
+/// 2. a CountMinSketch to guess the count of all other elements
+///
+/// On insert, it is checked if the element is already in the reservoir. If so, the precise count
+/// is updated. If not, the CountMinSketch is queried for a guess. If the guess is higher than the
+/// least common element in the reservoir, the new element displaces this reservoir element. The
+/// guess is used as an exact count and is stored alongside. In any case, the CountMinSketch is
+/// updated.
+///
+/// # See Also
+/// - `std::vec::Vec`: exact solution but needs to store the entire data stream
+///
+/// # References
+/// - ["Top K Frequent Items Algorithm", Zhipeng Jiang, 2017](https://zpjiang.me/2017/11/13/top-k-elementes-system-design/)
 #[derive(Clone)]
 pub struct TopK<T>
 where
@@ -143,7 +193,11 @@ where
                     });
                 } else {
                     // not enough space => check if it would be a top k element
+
                     let count = self.cms.query_point(&rc);
+                    // count at this point already contains the +1 from the current insertions
+                    // because we've updated the CountMinSketch before the query
+
                     let min: TreeEntry<T> = (*self.tree.iter().next().unwrap()).clone();
                     if count > min.n {
                         // => kick out minimal element of top k
