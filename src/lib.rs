@@ -4,6 +4,7 @@
 
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
+#![deny(unsafe_code)]
 #![deny(unused_extern_crates)]
 
 extern crate bytecount;
