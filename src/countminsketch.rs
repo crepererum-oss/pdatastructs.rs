@@ -1,4 +1,4 @@
-//! `CountMinSketch` implementation.
+//! CountMinSketch implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::f64;
 use std::fmt;
@@ -8,11 +8,105 @@ use num_traits::{CheckedAdd, One, Unsigned, Zero};
 
 use hash_utils::{HashIter, MyBuildHasherDefault};
 
-/// Simple implementation of a
-/// [Count-min sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
+/// A CountMinSketch is a data structure to estimate the frequency of elements in a data stream.
 ///
 /// The type parameter `C` sets the type of the counter in the internal table and can be used to
-/// reduce memory consumption when low counts are expected.
+/// reduce memory consumption when low counts are expected (e.g. use `u16` instead of `u64` if you
+/// only expected up to `2^16 - 1 = 65535` measurements for each element).
+///
+/// # Examples
+/// ```
+/// use pdatastructs::countminsketch::CountMinSketch;
+///
+/// // set up filter
+/// let epsilon = 0.1;  // error threshold
+/// let delta = 0.2;  // epsilon is hit in (1 - 0.2) * 100% = 80%
+/// let mut cms = CountMinSketch::<u32>::with_point_query_properties(epsilon, delta);
+///
+/// // add some data
+/// cms.add(&"my super long string");
+/// cms.add(&"my super long string");
+///
+/// // later
+/// assert_eq!(cms.query_point(&"my super long string"), 2);
+/// assert_eq!(cms.query_point(&"another super long string"), 0);
+/// ```
+///
+/// # Applications
+/// - when a lot of data is streamed in an approximative counter is good enough, e.g. for access
+///   counts in network filters
+/// - as a part of the TopK data structure
+///
+/// # How It Works
+///
+/// ## Setup
+/// The filter is made up of a 2-dimensional table of `w` columns and `d` rows, with evey cell
+/// containing a counter initially set to 0.
+///
+/// ```text
+/// w = 2
+/// d = 4
+///
+/// +---+---+
+/// | 0 | 0 |
+/// +---+---+
+/// | 0 | 0 |
+/// +---+---+
+/// | 0 | 0 |
+/// +---+---+
+/// | 0 | 0 |
+/// +---+---+
+/// ```
+///
+/// ## Insertion
+/// When adding an element, for every row `i in [0, d)` a hash function `h_i(x)` is calculated that
+/// provides a column `x in [0, w)` each. The counters in the selected `w` cells (one in each row,
+/// but not necessarily one in each column) are increased by 1.
+///
+/// ```text
+/// w = 2
+/// d = 4
+///
+/// +---+---+       +---+---+
+/// |[0]| 0 |       | 1 | 0 |
+/// +---+---+       +---+---+
+/// | 0 |[0]|       | 0 | 1 |
+/// +---+---+  ==>  +---+---+
+/// | 0 |[0]|       | 0 | 1 |
+/// +---+---+       +---+---+
+/// |[0]| 0 |       | 1 | 0 |
+/// +---+---+       +---+---+
+/// ```
+///
+/// ## Query
+/// When querying an element, cells are selected by the same scheme and the minimum of the counters
+/// is returned as a guess.
+///
+/// ```text
+/// w = 2
+/// d = 4
+///
+/// +---+---+
+/// |[7]| 0 |
+/// +---+---+
+/// | 3 |[4]|
+/// +---+---+
+/// | 2 |[5]|
+/// +---+---+
+/// |[6]| 1 |
+/// +---+---+
+///
+/// min(7, 4, 5, 6) = 4
+/// ```
+///
+/// # See Also
+/// - `std::collections::HashMap`: exact count but needs to store all elements
+/// - `pdatastructs::bloomfilter::BloomFilter`: when you only want to measure if an element was
+///   observed or not and the actual count does not matter
+///
+/// # References
+/// - ["Count-Min Sketch", Graham Cormode, 2009](http://dimacs.rutgers.edu/~graham/pubs/papers/cmencyc.pdf)
+/// - [Wikipedia: Count–min sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
 #[derive(Clone)]
 pub struct CountMinSketch<C = usize, B = MyBuildHasherDefault<DefaultHasher>>
 where

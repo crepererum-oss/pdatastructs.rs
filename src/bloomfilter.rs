@@ -1,4 +1,4 @@
-//! `BloomFilter` implementation.
+//! BloomFilter implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash};
@@ -7,7 +7,54 @@ use fixedbitset::FixedBitSet;
 
 use hash_utils::{HashIter, MyBuildHasherDefault};
 
-/// Simple implementation of a [BloomFilter](https://en.wikipedia.org/wiki/Bloom_filter)
+/// A BloomFilter is a set-like data structure, that keeps track of elements it has seen without
+/// the need to store them. Looking up values has a certain false positive rate, but a false
+/// negative rate of 0%.
+///
+/// # Examples
+/// ```
+/// use pdatastructs::bloomfilter::BloomFilter;
+///
+/// // set up filter
+/// let false_positive_rate = 0.02;  // = 2%
+/// let expected_elements = 1000;
+/// let mut filter = BloomFilter::with_properties(expected_elements, false_positive_rate);
+///
+/// // add some data
+/// filter.add(&"my super long string");
+///
+/// // later
+/// assert!(filter.query(&"my super long string"));
+/// assert!(!filter.query(&"another super long string"));
+/// ```
+///
+/// # Applications
+/// - when a lot of data should be added to the set and a moderate false positive rate is
+///   acceptable, was used for spell checking
+/// - as a pre-filter for more expensive lookups, e.g. in combination with a real set, map or
+///   database, so the final false positive rate is 0%
+///
+/// # How It Works
+/// The filter is represented by a bit vector of size `m`. Also given are `k` hash functions
+/// `h_i(x), for i in 0..k`, every one mapping an input value `x` to an integer `>= 0` and `< m`.
+/// Initially, all bits are set to `False`.
+///
+/// During insertion of value `x`, the `k` bits addressed by `h_i(x), for i in 0..k` are set to
+/// `True`.
+///
+/// During lookup, it is checked if all these bits are set. If so, the value might be in the
+/// filter. If only a single bit is not set, it is clear that the value was never added to the
+/// filter.
+///
+/// # See Also
+/// - `std::collections::HashSet`: has a false positive rate of 0%, but also needs to store all
+///   elements
+/// - `pdatastructs::cuckoofilter::CuckooFilter`: better under some circumstances, but more
+///   complex data structure
+///
+/// # References
+/// - ["Space/Time Trade-offs in Hash Coding with Allowable Errors", Burton H. Bloom, 1970](http://dmod.eu/deca/ft_gateway.cfm.pdf)
+/// - [Wikipedia: Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter)
 #[derive(Clone)]
 pub struct BloomFilter<B = MyBuildHasherDefault<DefaultHasher>>
 where
@@ -31,7 +78,7 @@ impl BloomFilter {
     /// Create new, empty BloomFilter with given properties.
     ///
     /// - `n` number of unique elements the BloomFilter is expected to hold, must be `> 0`
-    /// - `p` false positive property when querying the BloomFilter after adding `n` unique
+    /// - `p` false positive rate when querying the BloomFilter after adding `n` unique
     ///   elements, must be `> 0` and `< 1`
     ///
     /// Panics if the parameters are not in range.

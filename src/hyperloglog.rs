@@ -1,4 +1,4 @@
-//! `HyperLogLog` implementation.
+//! HyperLogLog implementation.
 use bytecount;
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
@@ -7,7 +7,54 @@ use std::hash::{BuildHasher, Hash, Hasher};
 
 use hash_utils::MyBuildHasherDefault;
 
-/// A simple implementation of a [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
+/// A HyperLogLog is a data structure to count unique elements on a data stream.
+///
+/// # Examples
+/// ```
+/// use pdatastructs::hyperloglog::HyperLogLog;
+///
+/// // set up filter
+/// let address_bits = 4;  // so we store 2^4 = 16 registers in total
+/// let mut hll = HyperLogLog::new(address_bits);
+///
+/// // add some data
+/// hll.add(&"my super long string");
+/// hll.add(&"another super long string");
+/// hll.add(&"my super long string");  // again
+///
+/// // later
+/// assert_eq!(hll.count(), 2);
+/// ```
+///
+/// # Applications
+/// - an approximative `COUNT(DISTINCT x)` in SQL
+/// - count distinct elements in a data stream
+///
+/// # How It Works
+/// The HyperLogLog consists of `2^b` 8bit counters. Each counter is initialized to 0.
+///
+/// During insertion, a hash `h(x)` is calculated. The first `b` bits of the hash function are used
+/// to address a register, the other bits are used to create a number `p` which essentially counts
+/// the number of leading 0-bits (or in other words: the leftmost 1-bit). The addressed register is
+/// then updated to the maximum of its current value and `p`.
+///
+/// The calculation of the count is based on `1 / Sum_0^{2^b} (2^-register_i)` with a bunch of
+/// factors a corrections applied (see paper or source code).
+///
+/// # Implementation
+/// In contrast to the official HyperLogLog, a 64 bit instead of a 32 bit hash function is used. The
+/// registers always allocate 8 bits and are not compressed.
+///
+/// # See Also
+/// - `std::collections::HashSet`: can be used to get the exact count but requires you to store
+///   each and every element
+/// - `pdatastructs::bloomfilter::BloomFilter` and `pdatastructs::cuckoofilter::CuckooFilter`: when
+///   you also want to check if a single element is in the observed set
+///
+/// # References
+/// - ["HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm", Philippe
+///   Flajolet, Éric Fusy, Olivier Gandouet, Frédéric Meunier, 2007](http://dmod.eu/deca/ft_gateway.cfm.pdf)
+/// - [Wikipedia: HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 #[derive(Clone)]
 pub struct HyperLogLog<B = MyBuildHasherDefault<DefaultHasher>>
 where
@@ -76,8 +123,13 @@ where
         obj.hash(&mut hasher);
         let h: u64 = hasher.finish();
 
+        // split h into:
+        //  - w = 64 - b upper bits
+        //  - j = b lower bits
         let w = h >> self.b;
-        let j = h - (w << self.b);
+        let j = h - (w << self.b);  // no 1 as in the paper since register indices are 0-based
+
+        // p = leftmost bit (1-based count)
         let p = w.leading_zeros() + 1 - (self.b as u32);
 
         let m_old = self.registers[j as usize];
