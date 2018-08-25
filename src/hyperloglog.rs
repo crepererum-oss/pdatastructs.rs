@@ -127,7 +127,7 @@ where
         //  - w = 64 - b upper bits
         //  - j = b lower bits
         let w = h >> self.b;
-        let j = h - (w << self.b);  // no 1 as in the paper since register indices are 0-based
+        let j = h - (w << self.b); // no 1 as in the paper since register indices are 0-based
 
         // p = leftmost bit (1-based count)
         let p = w.leading_zeros() + 1 - (self.b as u32);
