@@ -5,7 +5,7 @@ use std::hash::{BuildHasher, Hash};
 
 use fixedbitset::FixedBitSet;
 
-use hash_utils::{HashIter, MyBuildHasherDefault};
+use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
 
 /// A BloomFilter is a set-like data structure, that keeps track of elements it has seen without
 /// the need to store them. Looking up values has a certain false positive rate, but a false
@@ -62,7 +62,7 @@ where
 {
     bs: FixedBitSet,
     k: usize,
-    buildhasher: B,
+    builder: HashIterBuilder<B>,
 }
 
 impl BloomFilter {
@@ -97,7 +97,7 @@ where
         Self {
             bs: FixedBitSet::with_capacity(m),
             k,
-            buildhasher,
+            builder: HashIterBuilder::new(m, k, buildhasher),
         }
     }
 
@@ -129,7 +129,7 @@ where
 
     /// Get `BuildHasher`.
     pub fn buildhasher(&self) -> &B {
-        &self.buildhasher
+        self.builder.buildhasher()
     }
 
     /// Add new element to the BloomFilter.
@@ -140,7 +140,7 @@ where
     where
         T: Hash,
     {
-        for pos in HashIter::new(self.bs.len(), self.k, obj, &self.buildhasher) {
+        for pos in self.builder.iter_for(obj) {
             self.bs.set(pos, true);
         }
     }
@@ -150,7 +150,7 @@ where
     where
         T: Hash,
     {
-        for pos in HashIter::new(self.bs.len(), self.k, obj, &self.buildhasher) {
+        for pos in self.builder.iter_for(obj) {
             if !self.bs[pos] {
                 return false;
             }
@@ -188,7 +188,7 @@ where
             other.bs.len()
         );
         assert!(
-            self.buildhasher == other.buildhasher,
+            self.buildhasher() == other.buildhasher(),
             "buildhasher must be equal"
         );
 
