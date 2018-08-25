@@ -6,7 +6,7 @@ use std::hash::{BuildHasher, Hash};
 
 use num_traits::{CheckedAdd, One, Unsigned, Zero};
 
-use hash_utils::{HashIter, MyBuildHasherDefault};
+use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
 
 /// A CountMinSketch is a data structure to estimate the frequency of elements in a data stream.
 ///
@@ -116,7 +116,7 @@ where
     table: Vec<C>,
     w: usize,
     d: usize,
-    buildhasher: B,
+    builder: HashIterBuilder<B>,
 }
 
 impl<C> CountMinSketch<C>
@@ -164,7 +164,7 @@ where
             table,
             w,
             d,
-            buildhasher,
+            builder: HashIterBuilder::new(w, d, buildhasher),
         }
     }
 
@@ -198,7 +198,7 @@ where
 
     /// Get `BuildHasher`
     pub fn buildhasher(&self) -> &B {
-        &self.buildhasher
+        self.builder.buildhasher()
     }
 
     /// Check whether the CountMinSketch is empty (i.e. no elements seen yet).
@@ -219,7 +219,7 @@ where
     where
         T: Hash,
     {
-        for (i, pos) in HashIter::new(self.w, self.d, obj, &self.buildhasher).enumerate() {
+        for (i, pos) in self.builder.iter_for(obj).enumerate() {
             let x = i * self.w + pos;
             self.table[x] = self.table[x].checked_add(n).unwrap();
         }
@@ -230,7 +230,8 @@ where
     where
         T: Hash,
     {
-        HashIter::new(self.w, self.d, obj, &self.buildhasher)
+        self.builder
+            .iter_for(obj)
             .enumerate()
             .map(|(i, pos)| i * self.w + pos)
             .map(|x| self.table[x].clone())
@@ -256,7 +257,7 @@ where
             self.w, other.w
         );
         assert!(
-            self.buildhasher == other.buildhasher,
+            self.buildhasher() == other.buildhasher(),
             "buildhasher must be equal"
         );
 
