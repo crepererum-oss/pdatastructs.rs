@@ -20,3 +20,10 @@ bytecount = "0.3"
 fixedbitset = "^0.1.9"
 num-traits = "^0.2.4"
 rand = "0.5"
+
+[dev-dependencies]
+criterion = "0.2"
+
+[[bench]]
+name = "bloomfilter"
+harness = false

@@ -10,6 +10,7 @@ script:
   - cargo build --verbose --all
   - cargo test --verbose --all
   - cargo doc --verbose --all
+  - cargo bench --verbose --all
 branches:
   only:
     # This is where pull requests from "bors r+" are built.
