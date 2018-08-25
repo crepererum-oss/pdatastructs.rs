@@ -84,12 +84,12 @@ where
 ///     } else {
 ///         x
 ///     };
-///     tk.add(x);
+///     tk.add(y);
 /// }
 ///
 /// // later
 /// let elements: Vec<u64> = tk.iter().collect();
-/// assert_eq!(elements, vec![0, 1]);
+/// assert_eq!(elements, vec![1, 0]);
 /// ```
 ///
 /// # Applications
