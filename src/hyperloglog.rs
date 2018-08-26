@@ -54,6 +54,8 @@ use hash_utils::MyBuildHasherDefault;
 /// # References
 /// - ["HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm", Philippe
 ///   Flajolet, Éric Fusy, Olivier Gandouet, Frédéric Meunier, 2007](http://dmod.eu/deca/ft_gateway.cfm.pdf)
+/// - ["HyperLogLog in Practice: Algorithmic Engineering of a State of The Art Cardinality Estimation Algorithm", Stefan
+///   Heule, Marc Nunkesser, Alexander Hall, 2013](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/40671.pdf)
 /// - [Wikipedia: HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 #[derive(Clone)]
 pub struct HyperLogLog<B = MyBuildHasherDefault<DefaultHasher>>
