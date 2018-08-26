@@ -116,6 +116,11 @@ where
         &self.buildhasher
     }
 
+    /// Get relative error for this HyperLogLog configuration.
+    pub fn relative_error(&self) -> f64 {
+        (3f64 * 2f64.ln() - 1f64).sqrt() / (self.m() as f64).sqrt()
+    }
+
     /// Adds an element to the HyperLogLog.
     pub fn add<T>(&mut self, obj: &T)
     where
@@ -256,6 +261,12 @@ mod tests {
         assert_eq!(hll.b(), 8);
         assert_eq!(hll.m(), 1 << 8);
         hll.buildhasher();
+    }
+
+    #[test]
+    fn relative_error() {
+        let hll = HyperLogLog::new(4);
+        assert!((hll.relative_error() - 0.2597).abs() < 0.001);
     }
 
     #[test]
