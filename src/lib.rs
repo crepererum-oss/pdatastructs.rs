@@ -11,6 +11,7 @@ extern crate bytecount;
 extern crate fixedbitset;
 pub extern crate num_traits;
 pub extern crate rand;
+extern crate succinct;
 
 pub mod bloomfilter;
 pub mod countminsketch;
