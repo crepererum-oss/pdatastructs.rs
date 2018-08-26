@@ -135,7 +135,7 @@ where
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
-    table: IntVector,
+    table: IntVector<u64>,
     n_elements: usize,
     buildhasher: B,
     bucketsize: usize,
@@ -428,7 +428,7 @@ where
         false
     }
 
-    fn start<T>(&self, t: &T) -> (usize, usize, usize)
+    fn start<T>(&self, t: &T) -> (u64, usize, usize)
     where
         T: Hash,
     {
@@ -438,7 +438,7 @@ where
         (f, i1, i2)
     }
 
-    fn fingerprint<T>(&self, t: &T) -> usize
+    fn fingerprint<T>(&self, t: &T) -> u64
     where
         T: Hash,
     {
@@ -452,7 +452,7 @@ where
         } else {
             (1u64 << self.l_fingerprint) - 1
         };
-        (1 + (hasher.finish() % x_mod)) as usize
+        1 + (hasher.finish() % x_mod)
     }
 
     fn hash<T>(&self, t: &T) -> usize
@@ -465,7 +465,7 @@ where
         (hasher.finish() & (self.n_buckets as u64 - 1)) as usize
     }
 
-    fn write_to_bucket(&mut self, i: usize, f: usize) -> bool {
+    fn write_to_bucket(&mut self, i: usize, f: u64) -> bool {
         let offset = i * self.bucketsize;
         for x in offset..(offset + self.bucketsize) {
             if self.table.get(x as u64) == 0 {
@@ -476,7 +476,7 @@ where
         false
     }
 
-    fn has_in_bucket(&self, i: usize, f: usize) -> bool {
+    fn has_in_bucket(&self, i: usize, f: u64) -> bool {
         let offset = i * self.bucketsize;
         for x in offset..(offset + self.bucketsize) {
             if self.table.get(x as u64) == f {
@@ -486,7 +486,7 @@ where
         false
     }
 
-    fn remove_from_bucket(&mut self, i: usize, f: usize) -> bool {
+    fn remove_from_bucket(&mut self, i: usize, f: u64) -> bool {
         let offset = i * self.bucketsize;
         for x in offset..(offset + self.bucketsize) {
             if self.table.get(x as u64) == f {
