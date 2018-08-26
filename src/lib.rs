@@ -18,5 +18,6 @@ pub mod countminsketch;
 pub mod cuckoofilter;
 pub mod hash_utils;
 pub mod hyperloglog;
+mod hyperloglog_data;
 pub mod reservoirsampling;
 pub mod topk;

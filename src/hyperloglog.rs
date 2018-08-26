@@ -6,6 +6,10 @@ use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 
 use hash_utils::MyBuildHasherDefault;
+use hyperloglog_data::{
+    BIAS_DATA_OFFSET, BIAS_DATA_VEC, RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC,
+    THRESHOLD_DATA_OFFSET, THRESHOLD_DATA_VEC,
+};
 
 /// A HyperLogLog is a data structure to count unique elements on a data stream.
 ///
@@ -42,8 +46,12 @@ use hash_utils::MyBuildHasherDefault;
 /// factors a corrections applied (see paper or source code).
 ///
 /// # Implementation
-/// In contrast to the official HyperLogLog, a 64 bit instead of a 32 bit hash function is used. The
-/// registers always allocate 8 bits and are not compressed.
+/// - The registers always allocate 8 bits and are not compressed.
+/// - No sparse representation is used at any point.
+/// - A 64 bit hash function is used (like in HyperLogLog++ paper) instead of the 32 bit hash
+///   function (like in the original HyperLogLog paper).
+/// - Bias correction is applied and the data is currently just taken from the HyperLogLog++ paper
+///   appendix.
 ///
 /// # See Also
 /// - `std::collections::HashSet`: can be used to get the exact count but requires you to store
@@ -56,6 +64,8 @@ use hash_utils::MyBuildHasherDefault;
 ///   Flajolet, Éric Fusy, Olivier Gandouet, Frédéric Meunier, 2007](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.142.9475)
 /// - ["HyperLogLog in Practice: Algorithmic Engineering of a State of The Art Cardinality Estimation Algorithm", Stefan
 ///   Heule, Marc Nunkesser, Alexander Hall, 2013](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/40671.pdf)
+/// - ["Appendix to HyperLogLog in Practice: Algorithmic Engineering of a State of the Art
+///   Cardinality Estimation Algorithm", Stefan Heule, Marc Nunkesser, Alexander Hall, 2016](https://goo.gl/iU8Ig)
 /// - [Wikipedia: HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 #[derive(Clone)]
 pub struct HyperLogLog<B = MyBuildHasherDefault<DefaultHasher>>
@@ -143,6 +153,90 @@ where
         self.registers[j as usize] = cmp::max(m_old, p as u8);
     }
 
+    fn am(&self) -> f64 {
+        let m = self.registers.len();
+
+        if m >= 128 {
+            0.7213 / (1. + 1.079 / (m as f64))
+        } else if m >= 64 {
+            0.709
+        } else if m >= 32 {
+            0.697
+        } else {
+            0.673
+        }
+    }
+
+    fn estimate_bias(&self, e: f64) -> f64 {
+        // binary search first nearest neighbor
+        let lookup_array = RAW_ESTIMATE_DATA_VEC[self.b - RAW_ESTIMATE_DATA_OFFSET];
+        let mut idx_left = match lookup_array.binary_search_by(|v| v.partial_cmp(&e).unwrap()) {
+            Ok(i) => Some(i),  // exact match
+            Err(i) => Some(i), // no match, i points to left neighbor
+        };
+
+        let mut idx_right = match idx_left {
+            Some(i) => if i < lookup_array.len() - 1 {
+                Some(i + 1)
+            } else {
+                None
+            },
+            _ => None,
+        };
+
+        // collect k nearest neighbors
+        let k = 6;
+        assert!(lookup_array.len() >= k);
+        let mut neighbors = vec![];
+        for _ in 0..k {
+            let (right_instead_left, idx) = match (idx_left, idx_right) {
+                (Some(i_left), Some(i_right)) => {
+                    // 2 candidates, find better one
+                    let delta_left = (lookup_array[i_left] - e).abs();
+                    let delta_right = (lookup_array[i_right] - e).abs();
+                    if delta_right < delta_left {
+                        (true, i_right)
+                    } else {
+                        (false, i_left)
+                    }
+                }
+                (Some(i_left), None) => {
+                    // just left one is there, use it
+                    (false, i_left)
+                }
+                (None, Some(i_right)) => {
+                    // just right one is there, use it
+                    (true, i_right)
+                }
+                _ => panic!("neighborhood search failed, this is bug!"),
+            };
+            neighbors.push(idx);
+            if right_instead_left {
+                idx_right = if idx < lookup_array.len() - 1 {
+                    Some(idx + 1)
+                } else {
+                    None
+                };
+            } else {
+                idx_left = if idx > 0 { Some(idx - 1) } else { None };
+            }
+        }
+
+        // calculate mean of neighbors
+        let bias_data = BIAS_DATA_VEC[self.b - BIAS_DATA_OFFSET];
+        neighbors.iter().map(|&i| bias_data[i]).sum::<f64>() / (k as f64)
+    }
+
+    fn linear_counting(&self, v: usize) -> f64 {
+        let m = self.registers.len() as f64;
+
+        m * (m / (v as f64)).ln()
+    }
+
+    fn threshold(&self) -> usize {
+        THRESHOLD_DATA_VEC[self.b - THRESHOLD_DATA_OFFSET]
+    }
+
     /// Guess the number of unique elements seen by the HyperLogLog.
     pub fn count(&self) -> usize {
         let m = self.registers.len() as f64;
@@ -153,35 +247,26 @@ where
             .map(|&x| 2f64.powi(-(i32::from(x))))
             .sum::<f64>();
 
-        let am = if m >= 128. {
-            0.7213 / (1. + 1.079 / m)
-        } else if m >= 64. {
-            0.709
-        } else if m >= 32. {
-            0.697
+        let e = self.am() * m * m * z;
+
+        let e_star = if e <= (5. * m) {
+            e - self.estimate_bias(e)
         } else {
-            0.673
-        };
-
-        let e = am * m * m * z;
-
-        let e_star = if e <= 5. / 2. * m {
-            // small range correction
-            let v = bytecount::count(&self.registers, 0);
-            if v != 0 {
-                m * (m / (v as f64)).ln()
-            } else {
-                e
-            }
-        } else if e <= 1. / 30. * 2f64.powi(32) {
-            // intermediate range => no correction
             e
-        } else {
-            // large range correction
-            -(2f64.powi(32)) * (1. - e / 2f64.powi(32)).ln()
         };
 
-        e_star as usize
+        let v = bytecount::count(&self.registers, 0);
+        let h = if v != 0 {
+            self.linear_counting(v)
+        } else {
+            e_star
+        };
+
+        if h <= (self.threshold() as f64) {
+            h as usize
+        } else {
+            e_star as usize
+        }
     }
 
     /// Merge w/ another HyperLogLog.
@@ -292,7 +377,7 @@ mod tests {
         for i in 0..1000 {
             hll.add(&i);
         }
-        assert_eq!(hll.count(), 966);
+        assert_eq!(hll.count(), 964);
         assert!(!hll.is_empty());
     }
 
@@ -332,7 +417,7 @@ mod tests {
         for i in 0..10000 {
             hll.add(&i);
         }
-        assert_eq!(hll.count(), 10303);
+        assert_eq!(hll.count(), 10050);
         assert!(!hll.is_empty());
     }
 
@@ -352,7 +437,7 @@ mod tests {
         for i in 0..100000 {
             hll.add(&i);
         }
-        assert_eq!(hll.count(), 100551);
+        assert_eq!(hll.count(), 100656);
         assert!(!hll.is_empty());
     }
 
