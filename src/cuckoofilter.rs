@@ -3,8 +3,8 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 
-use fixedbitset::FixedBitSet;
 use rand::Rng;
+use succinct::{IntVec, IntVecMut, IntVector};
 
 use hash_utils::MyBuildHasherDefault;
 
@@ -135,7 +135,7 @@ where
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
-    table: FixedBitSet,
+    table: IntVector,
     n_elements: usize,
     buildhasher: B,
     bucketsize: usize,
@@ -220,12 +220,15 @@ where
 
         let table_size = n_buckets
             .checked_mul(bucketsize)
-            .expect("Table size too large")
+            .expect("Table size too large");
+
+        // check table_size together w/ l_fingerprint would not overflow
+        table_size
             .checked_mul(l_fingerprint)
             .expect("Table size too large");
 
         Self {
-            table: FixedBitSet::with_capacity(table_size),
+            table: IntVector::with_fill(l_fingerprint, table_size as u64, 0),
             n_elements: 0,
             buildhasher: bh,
             bucketsize,
@@ -372,8 +375,8 @@ where
             let x = offset + e;
 
             // swap table[x] and f
-            let tmp = self.table_read(x);
-            self.table_write(x, f);
+            let tmp = self.table.get(x as u64);
+            self.table.set(x as u64, f);
             f = tmp;
 
             i ^= self.hash(&f);
@@ -425,7 +428,7 @@ where
         false
     }
 
-    fn start<T>(&self, t: &T) -> (u64, usize, usize)
+    fn start<T>(&self, t: &T) -> (usize, usize, usize)
     where
         T: Hash,
     {
@@ -435,7 +438,7 @@ where
         (f, i1, i2)
     }
 
-    fn fingerprint<T>(&self, t: &T) -> u64
+    fn fingerprint<T>(&self, t: &T) -> usize
     where
         T: Hash,
     {
@@ -449,7 +452,7 @@ where
         } else {
             (1u64 << self.l_fingerprint) - 1
         };
-        1 + (hasher.finish() % x_mod)
+        (1 + (hasher.finish() % x_mod)) as usize
     }
 
     fn hash<T>(&self, t: &T) -> usize
@@ -462,53 +465,36 @@ where
         (hasher.finish() & (self.n_buckets as u64 - 1)) as usize
     }
 
-    fn write_to_bucket(&mut self, i: usize, f: u64) -> bool {
+    fn write_to_bucket(&mut self, i: usize, f: usize) -> bool {
         let offset = i * self.bucketsize;
         for x in offset..(offset + self.bucketsize) {
-            if self.table_read(x) == 0 {
-                self.table_write(x, f);
+            if self.table.get(x as u64) == 0 {
+                self.table.set(x as u64, f);
                 return true;
             }
         }
         false
     }
 
-    fn has_in_bucket(&self, i: usize, f: u64) -> bool {
+    fn has_in_bucket(&self, i: usize, f: usize) -> bool {
         let offset = i * self.bucketsize;
         for x in offset..(offset + self.bucketsize) {
-            if self.table_read(x) == f {
+            if self.table.get(x as u64) == f {
                 return true;
             }
         }
         false
     }
 
-    fn remove_from_bucket(&mut self, i: usize, f: u64) -> bool {
+    fn remove_from_bucket(&mut self, i: usize, f: usize) -> bool {
         let offset = i * self.bucketsize;
         for x in offset..(offset + self.bucketsize) {
-            if self.table_read(x) == f {
-                self.table_write(x, 0);
+            if self.table.get(x as u64) == f {
+                self.table.set(x as u64, 0);
                 return true;
             }
         }
         false
-    }
-
-    fn table_read(&self, i: usize) -> u64 {
-        let offset = i * self.l_fingerprint;
-        let mut result = 0u64;
-        for b in 0..self.l_fingerprint {
-            result |= (self.table[offset + b] as u64) << (self.l_fingerprint - b - 1);
-        }
-        result
-    }
-
-    fn table_write(&mut self, i: usize, f: u64) {
-        let offset = i * self.l_fingerprint;
-        for b in 0..self.l_fingerprint {
-            self.table
-                .set(offset + b, (f >> (self.l_fingerprint - b - 1) & 1u64) != 0);
-        }
     }
 }
 
