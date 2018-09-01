@@ -6,6 +6,7 @@ use std::hash::{BuildHasher, Hash, Hasher};
 use rand::Rng;
 use succinct::{IntVec, IntVecMut, IntVector};
 
+use filters::Filter;
 use hash_utils::MyBuildHasherDefault;
 
 const MAX_NUM_KICKS: usize = 500; // mentioned in paper
@@ -21,7 +22,8 @@ pub struct CuckooFilterFull;
 ///
 /// # Examples
 /// ```
-/// use pdatastructs::cuckoofilter::CuckooFilter;
+/// use pdatastructs::filters::Filter;
+/// use pdatastructs::filters::cuckoofilter::CuckooFilter;
 /// use pdatastructs::rand::{ChaChaRng, SeedableRng};
 ///
 /// // set up filter
@@ -34,8 +36,8 @@ pub struct CuckooFilterFull;
 /// filter.insert(&"my super long string");
 ///
 /// // later
-/// assert!(filter.lookup(&"my super long string"));
-/// assert!(!filter.lookup(&"another super long string"));
+/// assert!(filter.query(&"my super long string"));
+/// assert!(!filter.query(&"another super long string"));
 /// ```
 ///
 /// # Applications
@@ -332,79 +334,9 @@ where
         self.l_fingerprint
     }
 
-    /// Check if CuckooFilter is empty, i.e. contains no elements.
-    pub fn is_empty(&self) -> bool {
-        self.n_elements == 0
-    }
-
     /// Return number of elements in the filter.
     pub fn len(&self) -> usize {
         self.n_elements
-    }
-
-    /// Insert new element into filter.
-    ///
-    /// The method may return an error if it was unable to find a free bucket. This means the
-    /// filter is full and you should not add any additional elements to it. When this happens,
-    /// `len` was not increased and the filter content was not altered.
-    ///
-    /// Inserting the same element multiple times is supported, but keep in mind that after
-    /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`.
-    pub fn insert<T>(&mut self, t: &T) -> Result<(), CuckooFilterFull>
-    where
-        T: Hash,
-    {
-        let (mut f, i1, i2) = self.start(t);
-
-        if self.write_to_bucket(i1, f) {
-            self.n_elements += 1;
-            return Ok(());
-        }
-        if self.write_to_bucket(i2, f) {
-            self.n_elements += 1;
-            return Ok(());
-        }
-
-        // cannot write to obvious buckets => relocate
-        let table_backup = self.table.clone(); // may be required for rollback
-        let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
-
-        for _ in 0..MAX_NUM_KICKS {
-            let e = self.rng.gen_range::<usize>(0, self.bucketsize);
-            let offset = i * self.bucketsize;
-            let x = offset + e;
-
-            // swap table[x] and f
-            let tmp = self.table.get(x as u64);
-            self.table.set(x as u64, f);
-            f = tmp;
-
-            i ^= self.hash(&f);
-            if self.write_to_bucket(i, f) {
-                self.n_elements += 1;
-                return Ok(());
-            }
-        }
-
-        // no space left => fail
-        self.table = table_backup; // rollback transaction
-        Err(CuckooFilterFull)
-    }
-
-    /// Check if given element was inserted into the filter.
-    pub fn lookup<T>(&self, t: &T) -> bool
-    where
-        T: Hash,
-    {
-        let (f, i1, i2) = self.start(t);
-
-        if self.has_in_bucket(i1, f) {
-            return true;
-        }
-        if self.has_in_bucket(i2, f) {
-            return true;
-        }
-        false
     }
 
     /// Remove element from the filter.
@@ -498,6 +430,87 @@ where
     }
 }
 
+impl<R, B> Filter for CuckooFilter<R, B>
+where
+    R: Rng,
+    B: BuildHasher + Clone + Eq,
+{
+    type InsertErr = CuckooFilterFull;
+
+    fn clear(&mut self) {
+        self.n_elements = 0;
+        self.table = IntVector::with_fill(self.table.element_bits(), self.table.len(), 0);
+    }
+
+    /// Insert new element into filter.
+    ///
+    /// The method may return an error if it was unable to find a free bucket. This means the
+    /// filter is full and you should not add any additional elements to it. When this happens,
+    /// `len` was not increased and the filter content was not altered.
+    ///
+    /// Inserting the same element multiple times is supported, but keep in mind that after
+    /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`.
+    fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
+    where
+        T: Hash,
+    {
+        let (mut f, i1, i2) = self.start(t);
+
+        if self.write_to_bucket(i1, f) {
+            self.n_elements += 1;
+            return Ok(());
+        }
+        if self.write_to_bucket(i2, f) {
+            self.n_elements += 1;
+            return Ok(());
+        }
+
+        // cannot write to obvious buckets => relocate
+        let table_backup = self.table.clone(); // may be required for rollback
+        let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
+
+        for _ in 0..MAX_NUM_KICKS {
+            let e = self.rng.gen_range::<usize>(0, self.bucketsize);
+            let offset = i * self.bucketsize;
+            let x = offset + e;
+
+            // swap table[x] and f
+            let tmp = self.table.get(x as u64);
+            self.table.set(x as u64, f);
+            f = tmp;
+
+            i ^= self.hash(&f);
+            if self.write_to_bucket(i, f) {
+                self.n_elements += 1;
+                return Ok(());
+            }
+        }
+
+        // no space left => fail
+        self.table = table_backup; // rollback transaction
+        Err(CuckooFilterFull)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.n_elements == 0
+    }
+
+    fn query<T>(&self, obj: &T) -> bool
+    where
+        T: Hash,
+    {
+        let (f, i1, i2) = self.start(obj);
+
+        if self.has_in_bucket(i1, f) {
+            return true;
+        }
+        if self.has_in_bucket(i2, f) {
+            return true;
+        }
+        false
+    }
+}
+
 impl<R, B> fmt::Debug for CuckooFilter<R, B>
 where
     R: Rng,
@@ -515,6 +528,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::CuckooFilter;
+    use filters::Filter;
     use rand::{ChaChaRng, SeedableRng};
 
     #[test]
@@ -616,8 +630,8 @@ mod tests {
         cf.insert(&13).unwrap();
         assert!(!cf.is_empty());
         assert_eq!(cf.len(), 1);
-        assert!(cf.lookup(&13));
-        assert!(!cf.lookup(&42));
+        assert!(cf.query(&13));
+        assert!(!cf.query(&42));
     }
 
     #[test]
@@ -625,14 +639,24 @@ mod tests {
         let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         cf.insert(&13).unwrap();
         cf.insert(&42).unwrap();
-        assert!(cf.lookup(&13));
-        assert!(cf.lookup(&42));
+        assert!(cf.query(&13));
+        assert!(cf.query(&42));
         assert_eq!(cf.len(), 2);
 
         assert!(cf.delete(&13));
-        assert!(!cf.lookup(&13));
-        assert!(cf.lookup(&42));
+        assert!(!cf.query(&13));
+        assert!(cf.query(&42));
         assert_eq!(cf.len(), 1);
+    }
+
+    #[test]
+    fn clear() {
+        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+
+        cf.insert(&1).unwrap();
+        cf.clear();
+        assert!(!cf.query(&1));
+        assert!(cf.is_empty());
     }
 
     #[test]
@@ -644,12 +668,12 @@ mod tests {
         }
         assert_eq!(cf.len(), 4);
         for i in 0..4 {
-            assert!(cf.lookup(&i));
+            assert!(cf.query(&i));
         }
 
         assert!(cf.insert(&5).is_err());
         assert_eq!(cf.len(), 4);
-        assert!(!cf.lookup(&5)); // rollback was executed
+        assert!(!cf.query(&5)); // rollback was executed
     }
 
     #[test]
@@ -665,12 +689,12 @@ mod tests {
     fn clone() {
         let mut cf1 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         cf1.insert(&13).unwrap();
-        assert!(cf1.lookup(&13));
+        assert!(cf1.query(&13));
 
         let cf2 = cf1.clone();
         cf1.insert(&42).unwrap();
-        assert!(cf2.lookup(&13));
-        assert!(!cf2.lookup(&42));
+        assert!(cf2.query(&13));
+        assert!(!cf2.query(&42));
     }
 
     #[test]

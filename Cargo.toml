@@ -21,16 +21,13 @@ fixedbitset = "^0.1.9"
 num-traits = "^0.2.4"
 rand = "0.5"
 succinct = "^0.4.4"
+void = "1"
 
 [dev-dependencies]
 criterion = "0.2"
 
 [[bench]]
-name = "bloomfilter"
-harness = false
-
-[[bench]]
-name = "cuckoofilter"
+name = "filters"
 harness = false
 
 [[bench]]

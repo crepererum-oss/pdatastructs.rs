@@ -12,10 +12,10 @@ extern crate fixedbitset;
 pub extern crate num_traits;
 pub extern crate rand;
 extern crate succinct;
+extern crate void;
 
-pub mod bloomfilter;
 pub mod countminsketch;
-pub mod cuckoofilter;
+pub mod filters;
 pub mod hash_utils;
 pub mod hyperloglog;
 mod hyperloglog_data;
