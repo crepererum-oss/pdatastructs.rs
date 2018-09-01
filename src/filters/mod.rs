@@ -11,6 +11,9 @@ use std::hash::Hash;
 ///
 /// This kind of lookup is also referred to as Approximate Membership Queries (AMQs).
 pub trait Filter {
+    /// Check if filters is empty, i.e. contains no elements.
+    fn is_empty(&self) -> bool;
+
     /// Guess if the given element was added to the filter.
     fn query<T>(&self, obj: &T) -> bool
     where

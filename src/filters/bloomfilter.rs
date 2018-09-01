@@ -152,11 +152,6 @@ where
         self.bs.clear()
     }
 
-    /// Check whether the BloomFilter is empty.
-    pub fn is_empty(&self) -> bool {
-        self.bs.ones().next().is_none()
-    }
-
     /// Add the entire content of another bloomfilter to this BloomFilter.
     ///
     /// The result is the same as adding all elements added to `other` to `self` in the first
@@ -195,6 +190,10 @@ where
 }
 
 impl Filter for BloomFilter {
+    fn is_empty(&self) -> bool {
+        self.bs.ones().next().is_none()
+    }
+
     fn query<T>(&self, obj: &T) -> bool
     where
         T: Hash,

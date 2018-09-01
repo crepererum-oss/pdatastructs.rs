@@ -334,11 +334,6 @@ where
         self.l_fingerprint
     }
 
-    /// Check if CuckooFilter is empty, i.e. contains no elements.
-    pub fn is_empty(&self) -> bool {
-        self.n_elements == 0
-    }
-
     /// Return number of elements in the filter.
     pub fn len(&self) -> usize {
         self.n_elements
@@ -489,6 +484,10 @@ where
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
+    fn is_empty(&self) -> bool {
+        self.n_elements == 0
+    }
+
     fn query<T>(&self, obj: &T) -> bool
     where
         T: Hash,
