@@ -11,6 +11,18 @@ use std::hash::Hash;
 ///
 /// This kind of lookup is also referred to as Approximate Membership Queries (AMQs).
 pub trait Filter {
+    /// Error type that may occur during insertion.
+    type InsertErr;
+
+    /// Insert new element into the filter.
+    ///
+    /// The method may return an error under certain conditions. When this happens, the
+    /// user-visible state is not altered, i.e. the element was not added to the filter. The
+    /// internal state may have changed though.
+    fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
+    where
+        T: Hash;
+
     /// Check if filters is empty, i.e. contains no elements.
     fn is_empty(&self) -> bool;
 

@@ -12,6 +12,7 @@ extern crate fixedbitset;
 pub extern crate num_traits;
 pub extern crate rand;
 extern crate succinct;
+extern crate void;
 
 pub mod countminsketch;
 pub mod filters;

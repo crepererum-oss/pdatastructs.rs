@@ -339,55 +339,6 @@ where
         self.n_elements
     }
 
-    /// Insert new element into filter.
-    ///
-    /// The method may return an error if it was unable to find a free bucket. This means the
-    /// filter is full and you should not add any additional elements to it. When this happens,
-    /// `len` was not increased and the filter content was not altered.
-    ///
-    /// Inserting the same element multiple times is supported, but keep in mind that after
-    /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`.
-    pub fn insert<T>(&mut self, t: &T) -> Result<(), CuckooFilterFull>
-    where
-        T: Hash,
-    {
-        let (mut f, i1, i2) = self.start(t);
-
-        if self.write_to_bucket(i1, f) {
-            self.n_elements += 1;
-            return Ok(());
-        }
-        if self.write_to_bucket(i2, f) {
-            self.n_elements += 1;
-            return Ok(());
-        }
-
-        // cannot write to obvious buckets => relocate
-        let table_backup = self.table.clone(); // may be required for rollback
-        let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
-
-        for _ in 0..MAX_NUM_KICKS {
-            let e = self.rng.gen_range::<usize>(0, self.bucketsize);
-            let offset = i * self.bucketsize;
-            let x = offset + e;
-
-            // swap table[x] and f
-            let tmp = self.table.get(x as u64);
-            self.table.set(x as u64, f);
-            f = tmp;
-
-            i ^= self.hash(&f);
-            if self.write_to_bucket(i, f) {
-                self.n_elements += 1;
-                return Ok(());
-            }
-        }
-
-        // no space left => fail
-        self.table = table_backup; // rollback transaction
-        Err(CuckooFilterFull)
-    }
-
     /// Remove element from the filter.
     ///
     /// Returns `true` if element was in the filter, `false` if it was not in which case the operation did not modify
@@ -484,6 +435,57 @@ where
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
+    type InsertErr = CuckooFilterFull;
+
+    /// Insert new element into filter.
+    ///
+    /// The method may return an error if it was unable to find a free bucket. This means the
+    /// filter is full and you should not add any additional elements to it. When this happens,
+    /// `len` was not increased and the filter content was not altered.
+    ///
+    /// Inserting the same element multiple times is supported, but keep in mind that after
+    /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`.
+    fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
+    where
+        T: Hash,
+    {
+        let (mut f, i1, i2) = self.start(t);
+
+        if self.write_to_bucket(i1, f) {
+            self.n_elements += 1;
+            return Ok(());
+        }
+        if self.write_to_bucket(i2, f) {
+            self.n_elements += 1;
+            return Ok(());
+        }
+
+        // cannot write to obvious buckets => relocate
+        let table_backup = self.table.clone(); // may be required for rollback
+        let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
+
+        for _ in 0..MAX_NUM_KICKS {
+            let e = self.rng.gen_range::<usize>(0, self.bucketsize);
+            let offset = i * self.bucketsize;
+            let x = offset + e;
+
+            // swap table[x] and f
+            let tmp = self.table.get(x as u64);
+            self.table.set(x as u64, f);
+            f = tmp;
+
+            i ^= self.hash(&f);
+            if self.write_to_bucket(i, f) {
+                self.n_elements += 1;
+                return Ok(());
+            }
+        }
+
+        // no space left => fail
+        self.table = table_backup; // rollback transaction
+        Err(CuckooFilterFull)
+    }
+
     fn is_empty(&self) -> bool {
         self.n_elements == 0
     }

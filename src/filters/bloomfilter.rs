@@ -4,6 +4,7 @@ use std::fmt;
 use std::hash::{BuildHasher, Hash};
 
 use fixedbitset::FixedBitSet;
+use void::Void;
 
 use filters::Filter;
 use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
@@ -23,7 +24,7 @@ use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
 /// let mut filter = BloomFilter::with_properties(expected_elements, false_positive_rate);
 ///
 /// // add some data
-/// filter.add(&"my super long string");
+/// filter.insert(&"my super long string").unwrap();
 ///
 /// // later
 /// assert!(filter.query(&"my super long string"));
@@ -134,19 +135,6 @@ where
         self.builder.buildhasher()
     }
 
-    /// Add new element to the BloomFilter.
-    ///
-    /// If the same element is added multiple times or if an element results in the same hash
-    /// signature, this method does not have any effect.
-    pub fn add<T>(&mut self, obj: &T)
-    where
-        T: Hash,
-    {
-        for pos in self.builder.iter_for(obj) {
-            self.bs.set(pos, true);
-        }
-    }
-
     /// Clear state of the BloomFilter, so that it behaves like a fresh one.
     pub fn clear(&mut self) {
         self.bs.clear()
@@ -190,6 +178,23 @@ where
 }
 
 impl Filter for BloomFilter {
+    type InsertErr = Void;
+
+    /// Add new element to the BloomFilter.
+    ///
+    /// If the same element is added multiple times or if an element results in the same hash
+    /// signature, this method does not have any effect.
+    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
+    where
+        T: Hash,
+    {
+        for pos in self.builder.iter_for(obj) {
+            self.bs.set(pos, true);
+        }
+
+        Ok(())
+    }
+
     fn is_empty(&self) -> bool {
         self.bs.ones().next().is_none()
     }
@@ -219,7 +224,7 @@ where
 {
     fn extend<S: IntoIterator<Item = T>>(&mut self, iter: S) {
         for elem in iter {
-            self.add(&elem);
+            self.insert(&elem).unwrap();
         }
     }
 }
@@ -245,10 +250,10 @@ mod tests {
     }
 
     #[test]
-    fn add() {
+    fn insert() {
         let mut bf = BloomFilter::with_params(100, 2);
 
-        bf.add(&1);
+        bf.insert(&1).unwrap();
         assert!(bf.query(&1));
         assert!(!bf.query(&2));
     }
@@ -257,7 +262,7 @@ mod tests {
     fn clear() {
         let mut bf = BloomFilter::with_params(100, 2);
 
-        bf.add(&1);
+        bf.insert(&1).unwrap();
         bf.clear();
         assert!(!bf.query(&1));
     }
@@ -267,7 +272,7 @@ mod tests {
         let mut bf = BloomFilter::with_params(100, 2);
         assert!(bf.is_empty());
 
-        bf.add(&1);
+        bf.insert(&1).unwrap();
         assert!(!bf.is_empty());
 
         bf.clear();
@@ -277,10 +282,10 @@ mod tests {
     #[test]
     fn clone() {
         let mut bf1 = BloomFilter::with_params(100, 2);
-        bf1.add(&1);
+        bf1.insert(&1).unwrap();
 
         let bf2 = bf1.clone();
-        bf1.add(&2);
+        bf1.insert(&2).unwrap();
         assert!(bf2.query(&1));
         assert!(!bf2.query(&2));
     }
@@ -288,13 +293,13 @@ mod tests {
     #[test]
     fn union() {
         let mut bf1 = BloomFilter::with_params(100, 2);
-        bf1.add(&1);
+        bf1.insert(&1).unwrap();
         assert!(bf1.query(&1));
         assert!(!bf1.query(&2));
         assert!(!bf1.query(&3));
 
         let mut bf2 = BloomFilter::with_params(100, 2);
-        bf2.add(&2);
+        bf2.insert(&2).unwrap();
         assert!(!bf2.query(&1));
         assert!(bf2.query(&2));
         assert!(!bf2.query(&3));
@@ -359,13 +364,13 @@ mod tests {
         let mut bf = BloomFilter::with_params(100, 2);
         assert_eq!(bf.guess_n(), 0);
 
-        bf.add(&1);
+        bf.insert(&1).unwrap();
         assert_eq!(bf.guess_n(), 1);
 
-        bf.add(&1);
+        bf.insert(&1).unwrap();
         assert_eq!(bf.guess_n(), 1);
 
-        bf.add(&2);
+        bf.insert(&2).unwrap();
         assert_eq!(bf.guess_n(), 2);
     }
 
