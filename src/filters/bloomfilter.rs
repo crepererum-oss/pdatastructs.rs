@@ -5,6 +5,7 @@ use std::hash::{BuildHasher, Hash};
 
 use fixedbitset::FixedBitSet;
 
+use filters::Filter;
 use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
 
 /// A BloomFilter is a set-like data structure, that keeps track of elements it has seen without
@@ -13,6 +14,7 @@ use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
 ///
 /// # Examples
 /// ```
+/// use pdatastructs::filters::Filter;
 /// use pdatastructs::filters::bloomfilter::BloomFilter;
 ///
 /// // set up filter
@@ -145,19 +147,6 @@ where
         }
     }
 
-    /// Guess if the given element was added to the BloomFilter.
-    pub fn query<T>(&self, obj: &T) -> bool
-    where
-        T: Hash,
-    {
-        for pos in self.builder.iter_for(obj) {
-            if !self.bs[pos] {
-                return false;
-            }
-        }
-        true
-    }
-
     /// Clear state of the BloomFilter, so that it behaves like a fresh one.
     pub fn clear(&mut self) {
         self.bs.clear()
@@ -205,6 +194,20 @@ where
     }
 }
 
+impl Filter for BloomFilter {
+    fn query<T>(&self, obj: &T) -> bool
+    where
+        T: Hash,
+    {
+        for pos in self.builder.iter_for(obj) {
+            if !self.bs[pos] {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 impl fmt::Debug for BloomFilter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "BloomFilter {{ m: {}, k: {} }}", self.bs.len(), self.k)
@@ -225,6 +228,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::BloomFilter;
+    use filters::Filter;
     use hash_utils::BuildHasherSeeded;
 
     #[test]

@@ -6,6 +6,7 @@ use std::hash::{BuildHasher, Hash, Hasher};
 use rand::Rng;
 use succinct::{IntVec, IntVecMut, IntVector};
 
+use filters::Filter;
 use hash_utils::MyBuildHasherDefault;
 
 const MAX_NUM_KICKS: usize = 500; // mentioned in paper
@@ -21,6 +22,7 @@ pub struct CuckooFilterFull;
 ///
 /// # Examples
 /// ```
+/// use pdatastructs::filters::Filter;
 /// use pdatastructs::filters::cuckoofilter::CuckooFilter;
 /// use pdatastructs::rand::{ChaChaRng, SeedableRng};
 ///
@@ -34,8 +36,8 @@ pub struct CuckooFilterFull;
 /// filter.insert(&"my super long string");
 ///
 /// // later
-/// assert!(filter.lookup(&"my super long string"));
-/// assert!(!filter.lookup(&"another super long string"));
+/// assert!(filter.query(&"my super long string"));
+/// assert!(!filter.query(&"another super long string"));
 /// ```
 ///
 /// # Applications
@@ -391,22 +393,6 @@ where
         Err(CuckooFilterFull)
     }
 
-    /// Check if given element was inserted into the filter.
-    pub fn lookup<T>(&self, t: &T) -> bool
-    where
-        T: Hash,
-    {
-        let (f, i1, i2) = self.start(t);
-
-        if self.has_in_bucket(i1, f) {
-            return true;
-        }
-        if self.has_in_bucket(i2, f) {
-            return true;
-        }
-        false
-    }
-
     /// Remove element from the filter.
     ///
     /// Returns `true` if element was in the filter, `false` if it was not in which case the operation did not modify
@@ -498,6 +484,27 @@ where
     }
 }
 
+impl<R, B> Filter for CuckooFilter<R, B>
+where
+    R: Rng,
+    B: BuildHasher + Clone + Eq,
+{
+    fn query<T>(&self, obj: &T) -> bool
+    where
+        T: Hash,
+    {
+        let (f, i1, i2) = self.start(obj);
+
+        if self.has_in_bucket(i1, f) {
+            return true;
+        }
+        if self.has_in_bucket(i2, f) {
+            return true;
+        }
+        false
+    }
+}
+
 impl<R, B> fmt::Debug for CuckooFilter<R, B>
 where
     R: Rng,
@@ -515,6 +522,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::CuckooFilter;
+    use filters::Filter;
     use rand::{ChaChaRng, SeedableRng};
 
     #[test]
@@ -616,8 +624,8 @@ mod tests {
         cf.insert(&13).unwrap();
         assert!(!cf.is_empty());
         assert_eq!(cf.len(), 1);
-        assert!(cf.lookup(&13));
-        assert!(!cf.lookup(&42));
+        assert!(cf.query(&13));
+        assert!(!cf.query(&42));
     }
 
     #[test]
@@ -625,13 +633,13 @@ mod tests {
         let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         cf.insert(&13).unwrap();
         cf.insert(&42).unwrap();
-        assert!(cf.lookup(&13));
-        assert!(cf.lookup(&42));
+        assert!(cf.query(&13));
+        assert!(cf.query(&42));
         assert_eq!(cf.len(), 2);
 
         assert!(cf.delete(&13));
-        assert!(!cf.lookup(&13));
-        assert!(cf.lookup(&42));
+        assert!(!cf.query(&13));
+        assert!(cf.query(&42));
         assert_eq!(cf.len(), 1);
     }
 
@@ -644,12 +652,12 @@ mod tests {
         }
         assert_eq!(cf.len(), 4);
         for i in 0..4 {
-            assert!(cf.lookup(&i));
+            assert!(cf.query(&i));
         }
 
         assert!(cf.insert(&5).is_err());
         assert_eq!(cf.len(), 4);
-        assert!(!cf.lookup(&5)); // rollback was executed
+        assert!(!cf.query(&5)); // rollback was executed
     }
 
     #[test]
@@ -665,12 +673,12 @@ mod tests {
     fn clone() {
         let mut cf1 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         cf1.insert(&13).unwrap();
-        assert!(cf1.lookup(&13));
+        assert!(cf1.query(&13));
 
         let cf2 = cf1.clone();
         cf1.insert(&42).unwrap();
-        assert!(cf2.lookup(&13));
-        assert!(!cf2.lookup(&42));
+        assert!(cf2.query(&13));
+        assert!(!cf2.query(&42));
     }
 
     #[test]
