@@ -13,9 +13,8 @@ pub extern crate num_traits;
 pub extern crate rand;
 extern crate succinct;
 
-pub mod bloomfilter;
 pub mod countminsketch;
-pub mod cuckoofilter;
+pub mod filters;
 pub mod hash_utils;
 pub mod hyperloglog;
 mod hyperloglog_data;

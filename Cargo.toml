@@ -26,11 +26,7 @@ succinct = "^0.4.4"
 criterion = "0.2"
 
 [[bench]]
-name = "bloomfilter"
-harness = false
-
-[[bench]]
-name = "cuckoofilter"
+name = "filters"
 harness = false
 
 [[bench]]

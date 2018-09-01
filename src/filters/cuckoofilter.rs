@@ -21,7 +21,7 @@ pub struct CuckooFilterFull;
 ///
 /// # Examples
 /// ```
-/// use pdatastructs::cuckoofilter::CuckooFilter;
+/// use pdatastructs::filters::cuckoofilter::CuckooFilter;
 /// use pdatastructs::rand::{ChaChaRng, SeedableRng};
 ///
 /// // set up filter

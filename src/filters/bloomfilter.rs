@@ -13,7 +13,7 @@ use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
 ///
 /// # Examples
 /// ```
-/// use pdatastructs::bloomfilter::BloomFilter;
+/// use pdatastructs::filters::bloomfilter::BloomFilter;
 ///
 /// // set up filter
 /// let false_positive_rate = 0.02;  // = 2%
