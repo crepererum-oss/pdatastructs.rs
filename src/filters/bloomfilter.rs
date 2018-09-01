@@ -135,11 +135,6 @@ where
         self.builder.buildhasher()
     }
 
-    /// Clear state of the BloomFilter, so that it behaves like a fresh one.
-    pub fn clear(&mut self) {
-        self.bs.clear()
-    }
-
     /// Add the entire content of another bloomfilter to this BloomFilter.
     ///
     /// The result is the same as adding all elements added to `other` to `self` in the first
@@ -179,6 +174,10 @@ where
 
 impl Filter for BloomFilter {
     type InsertErr = Void;
+
+    fn clear(&mut self) {
+        self.bs.clear()
+    }
 
     /// Add new element to the BloomFilter.
     ///
@@ -265,6 +264,7 @@ mod tests {
         bf.insert(&1).unwrap();
         bf.clear();
         assert!(!bf.query(&1));
+        assert!(bf.is_empty());
     }
 
     #[test]

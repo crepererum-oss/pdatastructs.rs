@@ -437,6 +437,11 @@ where
 {
     type InsertErr = CuckooFilterFull;
 
+    fn clear(&mut self) {
+        self.n_elements = 0;
+        self.table = IntVector::with_fill(self.table.element_bits(), self.table.len(), 0);
+    }
+
     /// Insert new element into filter.
     ///
     /// The method may return an error if it was unable to find a free bucket. This means the
@@ -642,6 +647,16 @@ mod tests {
         assert!(!cf.query(&13));
         assert!(cf.query(&42));
         assert_eq!(cf.len(), 1);
+    }
+
+    #[test]
+    fn clear() {
+        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+
+        cf.insert(&1).unwrap();
+        cf.clear();
+        assert!(!cf.query(&1));
+        assert!(cf.is_empty());
     }
 
     #[test]

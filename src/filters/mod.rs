@@ -14,6 +14,9 @@ pub trait Filter {
     /// Error type that may occur during insertion.
     type InsertErr;
 
+    /// Clear state of the filter, so that it behaves like a fresh one.
+    fn clear(&mut self);
+
     /// Insert new element into the filter.
     ///
     /// The method may return an error under certain conditions. When this happens, the
