@@ -161,15 +161,6 @@ where
 
         self.bs = &self.bs | &other.bs;
     }
-
-    /// Guess the number of unique elements added to the BloomFilter.
-    pub fn guess_n(&self) -> usize {
-        let m = self.bs.len() as f64;
-        let k = self.k as f64;
-        let x = self.bs.ones().count() as f64;
-
-        (-m / k * (1. - x / m).ln()) as usize
-    }
 }
 
 impl Filter for BloomFilter {
@@ -196,6 +187,14 @@ impl Filter for BloomFilter {
 
     fn is_empty(&self) -> bool {
         self.bs.ones().next().is_none()
+    }
+
+    fn len(&self) -> usize {
+        let m = self.bs.len() as f64;
+        let k = self.k as f64;
+        let x = self.bs.ones().count() as f64;
+
+        (-m / k * (1. - x / m).ln()) as usize
     }
 
     fn query<T>(&self, obj: &T) -> bool
@@ -360,18 +359,18 @@ mod tests {
     }
 
     #[test]
-    fn guess_n() {
+    fn len() {
         let mut bf = BloomFilter::with_params(100, 2);
-        assert_eq!(bf.guess_n(), 0);
+        assert_eq!(bf.len(), 0);
 
         bf.insert(&1).unwrap();
-        assert_eq!(bf.guess_n(), 1);
+        assert_eq!(bf.len(), 1);
 
         bf.insert(&1).unwrap();
-        assert_eq!(bf.guess_n(), 1);
+        assert_eq!(bf.len(), 1);
 
         bf.insert(&2).unwrap();
-        assert_eq!(bf.guess_n(), 2);
+        assert_eq!(bf.len(), 2);
     }
 
     #[test]

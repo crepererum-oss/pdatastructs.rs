@@ -1,5 +1,8 @@
+#![cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
+
+
 pub const THRESHOLD_DATA_OFFSET: usize = 4;
-pub const THRESHOLD_DATA_VEC: &'static [usize] = &[
+pub const THRESHOLD_DATA_VEC: &[usize] = &[
     10,     // b = 4
     20,     // b = 5
     40,     // b = 6
@@ -18,7 +21,7 @@ pub const THRESHOLD_DATA_VEC: &'static [usize] = &[
 ];
 
 pub const RAW_ESTIMATE_DATA_OFFSET: usize = 4;
-pub const RAW_ESTIMATE_DATA_VEC: &'static [&'static [f64]] = &[
+pub const RAW_ESTIMATE_DATA_VEC: &[&[f64]] = &[
     // precision 4
     &[
         11., 11.717, 12.207, 12.7896, 13.2882, 13.8204, 14.3772, 14.9342, 15.5202, 16.161, 16.7722,
@@ -1122,7 +1125,7 @@ pub const RAW_ESTIMATE_DATA_VEC: &'static [&'static [f64]] = &[
 ];
 
 pub const BIAS_DATA_OFFSET: usize = 4;
-pub const BIAS_DATA_VEC: &'static [&'static [f64]] = &[
+pub const BIAS_DATA_VEC: &[&[f64]] = &[
     // precision 4
     &[
         10.,

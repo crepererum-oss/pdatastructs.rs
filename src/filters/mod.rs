@@ -29,6 +29,9 @@ pub trait Filter {
     /// Check if filters is empty, i.e. contains no elements.
     fn is_empty(&self) -> bool;
 
+    /// Return guessed number of elements in the filter.
+    fn len(&self) -> usize;
+
     /// Guess if the given element was added to the filter.
     fn query<T>(&self, obj: &T) -> bool
     where
