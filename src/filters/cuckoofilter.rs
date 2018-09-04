@@ -334,11 +334,6 @@ where
         self.l_fingerprint
     }
 
-    /// Return number of elements in the filter.
-    pub fn len(&self) -> usize {
-        self.n_elements
-    }
-
     /// Remove element from the filter.
     ///
     /// Returns `true` if element was in the filter, `false` if it was not in which case the operation did not modify
@@ -493,6 +488,11 @@ where
 
     fn is_empty(&self) -> bool {
         self.n_elements == 0
+    }
+
+    /// Return exact number of elements in the filter.
+    fn len(&self) -> usize {
+        self.n_elements
     }
 
     fn query<T>(&self, obj: &T) -> bool
