@@ -2,11 +2,11 @@
 use std::collections::hash_map::DefaultHasher;
 use std::f64;
 use std::fmt;
-use std::hash::{BuildHasher, Hash};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 
 use num_traits::{CheckedAdd, One, Unsigned, Zero};
 
-use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
+use hash_utils::HashIterBuilder;
 
 /// A CountMinSketch is a data structure to estimate the frequency of elements in a data stream.
 ///
@@ -108,7 +108,7 @@ use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
 /// - ["Count-Min Sketch", Graham Cormode, 2009](http://dimacs.rutgers.edu/~graham/pubs/papers/cmencyc.pdf)
 /// - [Wikipedia: Count–min sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
 #[derive(Clone)]
-pub struct CountMinSketch<C = usize, B = MyBuildHasherDefault<DefaultHasher>>
+pub struct CountMinSketch<C = usize, B = BuildHasherDefault<DefaultHasher>>
 where
     C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
     B: BuildHasher + Clone + Eq,
@@ -128,7 +128,7 @@ where
     /// - `w` sets the number of columns
     /// - `d` sets the number of rows
     pub fn with_params(w: usize, d: usize) -> Self {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         Self::with_params_and_hasher(w, d, bh)
     }
 
@@ -147,7 +147,7 @@ where
     ///
     /// Panics when the input conditions do not hold.
     pub fn with_point_query_properties(epsilon: f64, delta: f64) -> Self {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         Self::with_point_query_properties_and_hasher(epsilon, delta, bh)
     }
 }

@@ -1,13 +1,12 @@
 //! CuckooFilter implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 
 use rand::Rng;
 use succinct::{IntVec, IntVecMut, IntVector};
 
 use filters::Filter;
-use hash_utils::MyBuildHasherDefault;
 
 const MAX_NUM_KICKS: usize = 500; // mentioned in paper
 
@@ -132,7 +131,7 @@ pub struct CuckooFilterFull;
 /// - ["Cuckoo Filter: Practically Better Than Bloom", Bin Fan, David G. Andersen, Michael
 ///   Kaminsky, Michael D. Mitzenmacher, 2014](https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf).
 #[derive(Clone)]
-pub struct CuckooFilter<R, B = MyBuildHasherDefault<DefaultHasher>>
+pub struct CuckooFilter<R, B = BuildHasherDefault<DefaultHasher>>
 where
     R: Rng,
     B: BuildHasher + Clone + Eq,
@@ -159,7 +158,7 @@ where
     ///
     /// The BuildHasher is set to the `DefaultHasher`.
     pub fn with_params(rng: R, bucketsize: usize, n_buckets: usize, l_fingerprint: usize) -> Self {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         Self::with_params_and_hash(rng, bucketsize, n_buckets, l_fingerprint, bh)
     }
 
@@ -169,7 +168,7 @@ where
     /// - `expected_elements`: number of expected elements to be added to the filter
     /// - `rng`: random number generator used for certain random actions
     pub fn with_properties_4(false_positive_rate: f64, expected_elements: usize, rng: R) -> Self {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         Self::with_properties_and_hash_4(false_positive_rate, expected_elements, rng, bh)
     }
 
@@ -179,7 +178,7 @@ where
     /// - `expected_elements`: number of expected elements to be added to the filter
     /// - `rng`: random number generator used for certain random actions
     pub fn with_properties_8(false_positive_rate: f64, expected_elements: usize, rng: R) -> Self {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         Self::with_properties_and_hash_8(false_positive_rate, expected_elements, rng, bh)
     }
 }

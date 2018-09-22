@@ -3,9 +3,8 @@ use bytecount;
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 
-use hash_utils::MyBuildHasherDefault;
 use hyperloglog_data::{
     BIAS_DATA_OFFSET, BIAS_DATA_VEC, RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC,
     THRESHOLD_DATA_OFFSET, THRESHOLD_DATA_VEC,
@@ -68,7 +67,7 @@ use hyperloglog_data::{
 ///   Cardinality Estimation Algorithm", Stefan Heule, Marc Nunkesser, Alexander Hall, 2016](https://goo.gl/iU8Ig)
 /// - [Wikipedia: HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 #[derive(Clone)]
-pub struct HyperLogLog<B = MyBuildHasherDefault<DefaultHasher>>
+pub struct HyperLogLog<B = BuildHasherDefault<DefaultHasher>>
 where
     B: BuildHasher + Clone + Eq,
 {
@@ -85,7 +84,7 @@ impl HyperLogLog {
     ///
     /// Panics when `b` is out of bounds.
     pub fn new(b: usize) -> Self {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         Self::with_hash(b, bh)
     }
 }
