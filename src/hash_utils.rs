@@ -1,8 +1,6 @@
 //! Hash-related utils.
 use std::collections::hash_map::DefaultHasher;
-use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
-use std::marker;
 
 /// Builder for iterators for multiple hash function results for the same given objects.
 ///
@@ -11,11 +9,12 @@ use std::marker;
 ///
 /// # Examples
 /// ```
-/// use pdatastructs::hash_utils::{HashIterBuilder, MyBuildHasherDefault};
+/// use pdatastructs::hash_utils::HashIterBuilder;
 /// use std::collections::hash_map::DefaultHasher;
+/// use std::hash::BuildHasherDefault;
 ///
 /// // set up builder
-/// let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+/// let bh = BuildHasherDefault::<DefaultHasher>::default();
 /// let max_result = 42;
 /// let number_functions = 2;
 /// let builder = HashIterBuilder::new(max_result, number_functions, bh);
@@ -120,8 +119,7 @@ where
                 let mut hasher = buildhasher.build_hasher();
                 hasher.write_usize(i + 2); // skip 2 for h1 und h2
                 hasher.finish() % (m as u64)
-            })
-            .collect()
+            }).collect()
     }
 
     /// Helper to calculate h_0 and h_1.
@@ -189,42 +187,6 @@ where
     }
 }
 
-/// Like `BuildHasherDefault` but implements `Eq`.
-pub struct MyBuildHasherDefault<H>(marker::PhantomData<H>);
-
-impl<H> fmt::Debug for MyBuildHasherDefault<H> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad("BuildHasherDefault")
-    }
-}
-
-impl<H: Default + Hasher> BuildHasher for MyBuildHasherDefault<H> {
-    type Hasher = H;
-
-    fn build_hasher(&self) -> H {
-        H::default()
-    }
-}
-
-impl<H> Clone for MyBuildHasherDefault<H> {
-    fn clone(&self) -> MyBuildHasherDefault<H> {
-        MyBuildHasherDefault(marker::PhantomData)
-    }
-}
-
-impl<H> Default for MyBuildHasherDefault<H> {
-    fn default() -> MyBuildHasherDefault<H> {
-        MyBuildHasherDefault(marker::PhantomData)
-    }
-}
-
-impl<H> PartialEq for MyBuildHasherDefault<H> {
-    fn eq(&self, _other: &MyBuildHasherDefault<H>) -> bool {
-        true
-    }
-}
-impl<H> Eq for MyBuildHasherDefault<H> {}
-
 /// BuildHasher that takes a seed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BuildHasherSeeded {
@@ -250,26 +212,26 @@ impl BuildHasher for BuildHasherSeeded {
 
 #[cfg(test)]
 mod tests {
-    use super::{BuildHasherSeeded, HashIterBuilder, MyBuildHasherDefault};
+    use super::{BuildHasherSeeded, HashIterBuilder};
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::{BuildHasher, Hash, Hasher};
+    use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 
     #[test]
     fn hash_iter_builder_getter() {
-        let bh1 = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh1 = BuildHasherDefault::<DefaultHasher>::default();
         let builder = HashIterBuilder::new(42, 2, bh1);
 
         assert_eq!(builder.m(), 42);
         assert_eq!(builder.k(), 2);
 
-        let bh2 = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh2 = BuildHasherDefault::<DefaultHasher>::default();
         assert_eq!(builder.buildhasher(), &bh2);
     }
 
     #[test]
     fn hash_iter_builder_f() {
-        let bh1 = MyBuildHasherDefault::<DefaultHasher>::default();
-        let bh2 = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh1 = BuildHasherDefault::<DefaultHasher>::default();
+        let bh2 = BuildHasherDefault::<DefaultHasher>::default();
         let builder1 = HashIterBuilder::new(42, 2, bh1);
         let builder2 = HashIterBuilder::new(42, 2, bh2);
 
@@ -295,7 +257,7 @@ mod tests {
 
     #[test]
     fn hash_iter() {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         let obj = 1337;
 
         let builder = HashIterBuilder::new(42, 2, bh);

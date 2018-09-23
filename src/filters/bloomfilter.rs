@@ -1,13 +1,13 @@
 //! BloomFilter implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::{BuildHasher, Hash};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 
 use fixedbitset::FixedBitSet;
 use void::Void;
 
 use filters::Filter;
-use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
+use hash_utils::HashIterBuilder;
 
 /// A BloomFilter is a set-like data structure, that keeps track of elements it has seen without
 /// the need to store them. Looking up values has a certain false positive rate, but a false
@@ -59,7 +59,7 @@ use hash_utils::{HashIterBuilder, MyBuildHasherDefault};
 /// - ["Space/Time Trade-offs in Hash Coding with Allowable Errors", Burton H. Bloom, 1970](http://dmod.eu/deca/ft_gateway.cfm.pdf)
 /// - [Wikipedia: Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter)
 #[derive(Clone)]
-pub struct BloomFilter<B = MyBuildHasherDefault<DefaultHasher>>
+pub struct BloomFilter<B = BuildHasherDefault<DefaultHasher>>
 where
     B: BuildHasher + Clone + Eq,
 {
@@ -74,7 +74,7 @@ impl BloomFilter {
     /// - `k` is the number of hash functions
     /// - `m` is the number of bits used to store state
     pub fn with_params(m: usize, k: usize) -> Self {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         Self::with_params_and_hash(m, k, bh)
     }
 
@@ -86,7 +86,7 @@ impl BloomFilter {
     ///
     /// Panics if the parameters are not in range.
     pub fn with_properties(n: usize, p: f64) -> Self {
-        let bh = MyBuildHasherDefault::<DefaultHasher>::default();
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
         Self::with_properties_and_hash(n, p, bh)
     }
 }
