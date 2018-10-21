@@ -1,6 +1,10 @@
 //! QuotientFilter implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::mem::size_of;
+
+use fixedbitset::FixedBitSet;
+use succinct::{IntVec, IntVecMut, IntVector};
 
 use filters::Filter;
 
@@ -20,10 +24,10 @@ pub struct QuotientFilter<B = BuildHasherDefault<DefaultHasher>>
 where
     B: BuildHasher + Clone + Eq,
 {
-    is_occupied: Vec<bool>,     // TODO: shrink
-    is_continuation: Vec<bool>, // TODO: shrink
-    is_shifted: Vec<bool>,      // TODO: shrink
-    remainders: Vec<u64>,       // TODO: shrink
+    is_occupied: FixedBitSet,
+    is_continuation: FixedBitSet,
+    is_shifted: FixedBitSet,
+    remainders: IntVector,
     bits_quotient: usize,
     bits_remainder: usize,
     buildhasher: B,
@@ -62,9 +66,10 @@ where
         buildhasher: B,
     ) -> Self {
         assert!(
-            bits_remainder > 0,
-            "bits_remainder ({}) must be greater than 0",
+            (bits_remainder > 0) && (bits_remainder <= size_of::<usize>() * 8),
+            "bits_remainder ({}) must be greater than 0 and smaller or equal than {}",
             bits_remainder,
+            size_of::<usize>() * 8,
         );
         assert!(
             bits_quotient > 0,
@@ -80,10 +85,10 @@ where
 
         let len = 1 << bits_quotient;
         Self {
-            is_occupied: vec![false; len],
-            is_continuation: vec![false; len],
-            is_shifted: vec![false; len],
-            remainders: vec![0; len],
+            is_occupied: FixedBitSet::with_capacity(len),
+            is_continuation: FixedBitSet::with_capacity(len),
+            is_shifted: FixedBitSet::with_capacity(len),
+            remainders: IntVector::with_fill(bits_remainder, len as u64, 0),
             bits_quotient,
             bits_remainder,
             buildhasher,
@@ -101,7 +106,7 @@ where
         self.bits_remainder
     }
 
-    fn calc_quotient_remainder<T>(&self, obj: &T) -> (usize, u64)
+    fn calc_quotient_remainder<T>(&self, obj: &T) -> (usize, usize)
     where
         T: Hash,
     {
@@ -117,7 +122,7 @@ where
         let fingerprint_clean = fingerprint - trash;
         let quotient = fingerprint_clean >> self.bits_remainder;
         let remainder = fingerprint_clean - (quotient << self.bits_remainder);
-        (quotient as usize, remainder)
+        (quotient as usize, remainder as usize)
     }
 
     fn decr(&self, pos: &mut usize) {
@@ -136,7 +141,12 @@ where
         }
     }
 
-    fn scan(&self, quotient: usize, remainder: u64, on_insert: bool) -> (bool, usize, bool, usize) {
+    fn scan(
+        &self,
+        quotient: usize,
+        remainder: usize,
+        on_insert: bool,
+    ) -> (bool, usize, bool, usize) {
         let run_exists = self.is_occupied[quotient];
         if (!run_exists) && (!on_insert) {
             // fast-path for query, since we don't need to find the correct position for the
@@ -177,10 +187,11 @@ where
         let start_of_run = s;
         if run_exists {
             loop {
-                if self.remainders[s] == remainder {
+                let r = self.remainders.get(s as u64);
+                if r == remainder {
                     return (run_exists, s, run_exists, start_of_run);
                 }
-                if self.remainders[s] > remainder {
+                if r > remainder {
                     // remainders are sorted within run
                     break;
                 }
@@ -226,18 +237,18 @@ where
         // set up swap chain
         let mut current_is_continuation =
             self.is_continuation[position] || (run_exists && (position == start_of_run));
-        let mut current_remainder = self.remainders[position];
+        let mut current_remainder = self.remainders.get(position as u64);
         let mut current_used = self.is_occupied[position] || self.is_shifted[position];
 
         // set current state
-        self.remainders[position] = remainder;
+        self.remainders.set(position as u64, remainder);
         if position != start_of_run {
             // might be an append operation, ensure is_continuation and is_shifted are set
-            self.is_continuation[position] = true;
+            self.is_continuation.set(position, true);
         }
         if position != quotient {
             // not at canonical slot
-            self.is_shifted[position] = true;
+            self.is_shifted.set(position, true);
         }
 
         // run swap chain until nothing to do
@@ -245,12 +256,12 @@ where
         while current_used {
             self.incr(&mut position);
             let next_is_continuation = self.is_continuation[position];
-            let next_remainder = self.remainders[position];
+            let next_remainder = self.remainders.get(position as u64);
             let next_used = self.is_occupied[position] || self.is_shifted[position];
 
-            self.is_shifted[position] = true;
-            self.is_continuation[position] = current_is_continuation;
-            self.remainders[position] = current_remainder;
+            self.is_shifted.set(position, true);
+            self.is_continuation.set(position, current_is_continuation);
+            self.remainders.set(position as u64, current_remainder);
 
             current_is_continuation = next_is_continuation;
             current_remainder = next_remainder;
@@ -262,7 +273,7 @@ where
         }
 
         // mark canonical slot as occupied
-        self.is_occupied[quotient] = true;
+        self.is_occupied.set(quotient, true);
 
         // done
         self.n_elements += 1;
@@ -299,10 +310,40 @@ mod tests {
         QuotientFilter::with_params(0, 16);
     }
 
+    #[cfg(target_pointer_width = "32")]
     #[test]
-    #[should_panic(expected = "bits_remainder (0) must be greater than 0")]
+    #[should_panic(
+        expected = "bits_remainder (0) must be greater than 0 and smaller or equal than 32"
+    )]
     fn new_bits_remainder_0() {
         QuotientFilter::with_params(3, 0);
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    #[should_panic(
+        expected = "bits_remainder (0) must be greater than 0 and smaller or equal than 64"
+    )]
+    fn new_bits_remainder_0() {
+        QuotientFilter::with_params(3, 0);
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    #[test]
+    #[should_panic(
+        expected = "bits_remainder (33) must be greater than 0 and smaller or equal than 32"
+    )]
+    fn new_bits_remainder_too_large() {
+        QuotientFilter::with_params(3, 33);
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    #[should_panic(
+        expected = "bits_remainder (65) must be greater than 0 and smaller or equal than 64"
+    )]
+    fn new_bits_remainder_too_large() {
+        QuotientFilter::with_params(3, 65);
     }
 
     #[test]
