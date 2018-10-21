@@ -31,7 +31,14 @@ where
 }
 
 impl QuotientFilter {
-    /// TODO
+    /// Create new quotient filter with:
+    ///
+    /// - `bits_quotient`: number of bits used for a quotient, aka `2^bits_quotient` slots will be
+    ///   allocated
+    /// - `bits_remainder`: number of bits used for the remainder, so every slot will require
+    ///   `bits_remainder + 3` bits of storage
+    ///
+    /// and a default hasher.
     pub fn with_params(bits_quotient: usize, bits_remainder: usize) -> Self {
         let buildhasher = BuildHasherDefault::<DefaultHasher>::default();
         QuotientFilter::with_params_and_hash(bits_quotient, bits_remainder, buildhasher)
@@ -42,7 +49,13 @@ impl<B> QuotientFilter<B>
 where
     B: BuildHasher + Clone + Eq,
 {
-    /// TODO
+    /// Create new quotient filter with:
+    ///
+    /// - `bits_quotient`: number of bits used for a quotient, aka `2^bits_quotient` slots will be
+    ///   allocated
+    /// - `bits_remainder`: number of bits used for the remainder, so every slot will require
+    ///   `bits_remainder + 3` bits of storage
+    /// - `buildhasher`: hash implementation
     pub fn with_params_and_hash(
         bits_quotient: usize,
         bits_remainder: usize,
@@ -50,12 +63,12 @@ where
     ) -> Self {
         assert!(
             bits_remainder > 0,
-            "bits_remainder ({}) be larger than 0",
+            "bits_remainder ({}) must be greater than 0",
             bits_remainder,
         );
         assert!(
             bits_quotient > 0,
-            "bits_quotient ({}) be larger than 0",
+            "bits_quotient ({}) must be greater than 0",
             bits_quotient,
         );
         assert!(
@@ -76,6 +89,16 @@ where
             buildhasher,
             n_elements: 0,
         }
+    }
+
+    /// Number of bits used for addressing slots.
+    pub fn bits_quotient(&self) -> usize {
+        self.bits_quotient
+    }
+
+    /// Number of bits stored as fingeprint information.
+    pub fn bits_remainder(&self) -> usize {
+        self.bits_remainder
     }
 
     fn calc_quotient_remainder<T>(&self, obj: &T) -> (usize, u64)
@@ -271,11 +294,33 @@ mod tests {
     use filters::Filter;
 
     #[test]
+    #[should_panic(expected = "bits_quotient (0) must be greater than 0")]
+    fn new_bits_quotient_0() {
+        QuotientFilter::with_params(0, 16);
+    }
+
+    #[test]
+    #[should_panic(expected = "bits_remainder (0) must be greater than 0")]
+    fn new_bits_remainder_0() {
+        QuotientFilter::with_params(3, 0);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "bits_remainder (5) + bits_quotient (60) must be smaller or equal than 64"
+    )]
+    fn new_too_many_bits() {
+        QuotientFilter::with_params(60, 5);
+    }
+
+    #[test]
     fn new() {
         let qf = QuotientFilter::with_params(3, 16);
         assert!(qf.is_empty());
         assert_eq!(qf.len(), 0);
         assert!(!qf.query(&13));
+        assert_eq!(qf.bits_quotient(), 3);
+        assert_eq!(qf.bits_remainder(), 16);
     }
 
     #[test]
