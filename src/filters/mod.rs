@@ -2,6 +2,7 @@
 
 pub mod bloomfilter;
 pub mod cuckoofilter;
+pub mod quotientfilter;
 
 use std::hash::Hash;
 
