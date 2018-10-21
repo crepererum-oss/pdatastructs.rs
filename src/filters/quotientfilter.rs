@@ -19,7 +19,7 @@ pub struct QuotientFilterFull;
 /// https://en.wikipedia.org/wiki/Quotient_filter
 /// http://static.usenix.org/events/hotstorage11/tech/final_files/Bender.pdf
 /// https://www.vldb.org/pvldb/vol5/p1627_michaelabender_vldb2012.pdf
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct QuotientFilter<B = BuildHasherDefault<DefaultHasher>>
 where
     B: BuildHasher + Clone + Eq,
@@ -411,5 +411,22 @@ mod tests {
         assert!(!qf.query(&13));
         assert_eq!(qf.bits_quotient(), 3);
         assert_eq!(qf.bits_remainder(), 16);
+    }
+
+    #[test]
+    fn clone() {
+        let mut qf1 = QuotientFilter::with_params(3, 16);
+        qf1.insert(&13).unwrap();
+
+        let mut qf2 = qf1.clone();
+        qf2.insert(&42).unwrap();
+
+        assert_eq!(qf1.len(), 1);
+        assert!(qf1.query(&13));
+        assert!(!qf1.query(&42));
+
+        assert_eq!(qf2.len(), 2);
+        assert!(qf2.query(&13));
+        assert!(qf2.query(&42));
     }
 }
