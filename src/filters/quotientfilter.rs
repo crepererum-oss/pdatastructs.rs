@@ -12,13 +12,59 @@ use filters::Filter;
 #[derive(Debug)]
 pub struct QuotientFilterFull;
 
-/// TODO
-/// Run: List of fingerprints with same quotient.
-/// Cluster: set of runs
+/// A QuotientFilter is a set-like data structure, that keeps track of elements it has seen without
+/// the need to store them. Looking up values has a certain false positive rate, but a false
+/// negative rate of 0%.
 ///
-/// https://en.wikipedia.org/wiki/Quotient_filter
-/// http://static.usenix.org/events/hotstorage11/tech/final_files/Bender.pdf
-/// https://www.vldb.org/pvldb/vol5/p1627_michaelabender_vldb2012.pdf
+/// # Examples
+/// ```
+/// use pdatastructs::filters::Filter;
+/// use pdatastructs::filters::quotientfilter::QuotientFilter;
+///
+/// // set up filter
+/// let bits_quotient = 16;
+/// let bits_remainder = 5;
+/// let mut filter = QuotientFilter::with_params(bits_quotient, bits_remainder);
+///
+/// // add some data
+/// filter.insert(&"my super long string").unwrap();
+///
+/// // later
+/// assert!(filter.query(&"my super long string"));
+/// assert!(!filter.query(&"another super long string"));
+/// ```
+///
+/// # Applications
+/// - when a lot of data should be added to the set and a moderate false positive rate is
+///   acceptable, was used for spell checking
+/// - as a pre-filter for more expensive lookups, e.g. in combination with a real set, map or
+///   database, so the final false positive rate is 0%
+///
+/// # How It Works
+/// There are `2^bits_quotient` slots, initial empty. For every slot, we store `bits_remainder` as
+/// fingerprint information, a `is_continuation` bit, a `is_occupied` bit and a `is_shifted` bit.
+/// All bits are initially set to false.
+///
+/// On insertion, elements are hashed to 64 bits. From these, `bits_quotient` are used as a
+/// quotient and `bits_remainder` are used as remainder, the remaining bits are dropped.
+///
+/// The quotient represents the canonical position in which the remainder should be inserted. If is
+/// is free, we use that position, set the `is_occupied` bit and are done. If not, linear probing
+/// is applied. First, the start of all shifted elements is searched. All these slots are together
+/// make a cluster. The cluster then is made out of runs, every run made of elements with the same
+/// quotient (but different remainder). The `is_shifted` bit is set for all but the first slot in
+/// the cluster. The `is_continuation` bit is set of all but the first slot in a run. The
+/// `is_occupied` bit is always set for the canonical position. Runs are sorted in the order of
+/// their canonical slots.
+///
+/// # See Also
+/// - `std::collections::HashSet`: has a false positive rate of 0%, but also needs to store all
+///   elements
+///
+/// # References
+/// - ["Don’t Thrash: How to Cache your Hash on Flash" (short version), Michael A. Bender and others, 2012](http://static.usenix.org/events/hotstorage11/tech/final_files/Bender.pdf)
+/// - ["Don’t Thrash: How to Cache your Hash on Flash" (long version), Michael A. Bender and others, 2012](https://www.vldb.org/pvldb/vol5/p1627_michaelabender_vldb2012.pdf)
+/// - [Wikipedia: Quotient Filter](https://en.wikipedia.org/wiki/Quotient_filter)
 #[derive(Clone, Debug)]
 pub struct QuotientFilter<B = BuildHasherDefault<DefaultHasher>>
 where
