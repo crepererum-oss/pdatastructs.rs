@@ -29,7 +29,6 @@ where
     is_shifted: FixedBitSet,
     remainders: IntVector,
     bits_quotient: usize,
-    bits_remainder: usize,
     buildhasher: B,
     n_elements: usize,
 }
@@ -90,7 +89,6 @@ where
             is_shifted: FixedBitSet::with_capacity(len),
             remainders: IntVector::with_fill(bits_remainder, len as u64, 0),
             bits_quotient,
-            bits_remainder,
             buildhasher,
             n_elements: 0,
         }
@@ -103,25 +101,26 @@ where
 
     /// Number of bits stored as fingeprint information.
     pub fn bits_remainder(&self) -> usize {
-        self.bits_remainder
+        self.remainders.element_bits()
     }
 
     fn calc_quotient_remainder<T>(&self, obj: &T) -> (usize, usize)
     where
         T: Hash,
     {
+        let bits_remainder = self.bits_remainder();
         let mut hasher = self.buildhasher.build_hasher();
         obj.hash(&mut hasher);
         let fingerprint = hasher.finish();
-        let bits_trash = 64 - self.bits_remainder - self.bits_quotient;
+        let bits_trash = 64 - bits_remainder - self.bits_quotient;
         let trash = if bits_trash > 0 {
             (fingerprint >> (64 - bits_trash)) << (64 - bits_trash)
         } else {
             0
         };
         let fingerprint_clean = fingerprint - trash;
-        let quotient = fingerprint_clean >> self.bits_remainder;
-        let remainder = fingerprint_clean - (quotient << self.bits_remainder);
+        let quotient = fingerprint_clean >> bits_remainder;
+        let remainder = fingerprint_clean - (quotient << bits_remainder);
         (quotient as usize, remainder as usize)
     }
 
