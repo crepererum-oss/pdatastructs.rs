@@ -211,7 +211,12 @@ where
     type InsertErr = QuotientFilterFull;
 
     fn clear(&mut self) {
-        unimplemented!()
+        self.is_occupied.clear();
+        self.is_continuation.clear();
+        self.is_shifted.clear();
+        self.remainders =
+            IntVector::with_fill(self.remainders.element_bits(), self.remainders.len(), 0);
+        self.n_elements = 0;
     }
 
     fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
@@ -394,5 +399,17 @@ mod tests {
             }
         }
         assert!(qf.insert(&1000).is_err());
+    }
+
+    #[test]
+    fn clear() {
+        let mut qf = QuotientFilter::with_params(3, 16);
+        qf.insert(&13).unwrap();
+        qf.clear();
+        assert!(qf.is_empty());
+        assert_eq!(qf.len(), 0);
+        assert!(!qf.query(&13));
+        assert_eq!(qf.bits_quotient(), 3);
+        assert_eq!(qf.bits_remainder(), 16);
     }
 }
