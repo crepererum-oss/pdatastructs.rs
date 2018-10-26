@@ -41,21 +41,166 @@ pub struct QuotientFilterFull;
 ///   database, so the final false positive rate is 0%
 ///
 /// # How It Works
+///
+/// ## Setup
 /// There are `2^bits_quotient` slots, initial empty. For every slot, we store `bits_remainder` as
 /// fingerprint information, a `is_continuation` bit, a `is_occupied` bit and a `is_shifted` bit.
 /// All bits are initially set to false.
 ///
+/// ```text
+/// bits_quotient  = 3
+/// bits_remainder = 4
+///
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// |  position       ||   0 |   1 |   2 |   3 |   4 |   5 |   6 |   7 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | is_occupied     ||     |     |     |     |     |     |     |     |
+/// | is_continuation ||     |     |     |     |     |     |     |     |
+/// | is_shifted      ||     |     |     |     |     |     |     |     |
+/// | remainder       || 0x0 | 0x0 | 0x0 | 0x0 | 0x0 | 0x0 | 0x0 | 0x0 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// ```
+///
+/// ## Insertion
 /// On insertion, elements are hashed to 64 bits. From these, `bits_quotient` are used as a
 /// quotient and `bits_remainder` are used as remainder, the remaining bits are dropped.
 ///
 /// The quotient represents the canonical position in which the remainder should be inserted. If is
-/// is free, we use that position, set the `is_occupied` bit and are done. If not, linear probing
-/// is applied. First, the start of all shifted elements is searched. All these slots are together
-/// make a cluster. The cluster then is made out of runs, every run made of elements with the same
-/// quotient (but different remainder). The `is_shifted` bit is set for all but the first slot in
-/// the cluster. The `is_continuation` bit is set of all but the first slot in a run. The
-/// `is_occupied` bit is always set for the canonical position. Runs are sorted in the order of
-/// their canonical slots.
+/// is free, we use that position, set the `is_occupied` bit and are done.
+///
+/// ```text
+/// x           = "foo"
+/// h(x)        = 0x0123456789abcda5
+/// h(x) & 0x7f = 0x25
+/// remainder   = 0x5
+/// quotient    = 0x2
+///
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | position        ||   0 |   1 |   2 |   3 |   4 |   5 |   6 |   7 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | is_occupied     ||     |     |   X |     |     |     |     |     |
+/// | is_continuation ||     |     |     |     |     |     |     |     |
+/// | is_shifted      ||     |     |     |     |     |     |     |     |
+/// | remainder       || 0x0 | 0x0 | 0x2 | 0x0 | 0x0 | 0x0 | 0x0 | 0x0 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// ```
+///
+/// If not, linear probing is applied. If an element with the same quotient is already in the
+/// filter, the so called "run" of it will be extended. For extensions, the `is_continuation` bit
+/// is set as well as the `is_shifted` bit because the stored remainder is not in its canonical
+/// position:
+///
+/// ```text
+/// x           = "bar"
+/// h(x)        = 0xad8caa00248af32e
+/// h(x) & 0x7f = 0x2e
+/// remainder   = 0xe
+/// quotient    = 0x2
+///
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | position        ||   0 |   1 |   2 |   3 |   4 |   5 |   6 |   7 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | is_occupied     ||     |     |   X |     |     |     |     |     |
+/// | is_continuation ||     |     |     |   X |     |     |     |     |
+/// | is_shifted      ||     |     |     |   X |     |     |     |     |
+/// | remainder       || 0x0 | 0x0 | 0x2 | 0xe | 0x0 | 0x0 | 0x0 | 0x0 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | run             ||            [=========]                        |
+/// +-----------------++-----------------------------------------------|
+/// ```
+///
+/// While doing so, the order of remainders within the run is preserved:
+///
+/// ```text
+/// x           = "elephant"
+/// h(x)        = 0x34235511eeadbc26
+/// h(x) & 0x7f = 0x26
+/// remainder   = 0x6
+/// quotient    = 0x2
+///
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | position        ||   0 |   1 |   2 |   3 |   4 |   5 |   6 |   7 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | is_occupied     ||     |     |   X |     |     |     |     |     |
+/// | is_continuation ||     |     |     |   X |   X |     |     |     |
+/// | is_shifted      ||     |     |     |   X |   X |     |     |     |
+/// | remainder       || 0x0 | 0x0 | 0x2 | 0x6 | 0xe | 0x0 | 0x0 | 0x0 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | run             ||            [===============]                  |
+/// +-----------------++-----------------------------------------------|
+/// ```
+///
+/// If a new quotient is inserted but the corresponding run cannot start at the canonical position,
+/// the entire run will be shifted. A sequence of runs is also called "cluster". Even though the
+/// run is shifted, the original position will still be marked as occupied:
+///
+/// ```text
+/// x           = "banana"
+/// h(x)        = 0xdfdfdfdfdfdfdf31
+/// h(x) & 0x7f = 0x31
+/// remainder   = 0x1
+/// quotient    = 0x3
+///
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | position        ||   0 |   1 |   2 |   3 |   4 |   5 |   6 |   7 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | is_occupied     ||     |     |   X |   X |     |     |     |     |
+/// | is_continuation ||     |     |     |   X |   X |     |     |     |
+/// | is_shifted      ||     |     |     |   X |   X |   X |     |     |
+/// | remainder       || 0x0 | 0x0 | 0x2 | 0x6 | 0xe | 0x1 | 0x0 | 0x0 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | run             ||            [===============] [===]            |
+/// | cluster         ||            [=====================]            |
+/// +-----------------++-----------------------------------------------|
+/// ```
+///
+/// Remainders may duplicate over multiple runs:
+///
+/// ```text
+/// x           = "apple"
+/// h(x)        = 0x0000000000000072
+/// h(x) & 0x7f = 0x72
+/// remainder   = 0x2
+/// quotient    = 0x7
+///
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | position        ||   0 |   1 |   2 |   3 |   4 |   5 |   6 |   7 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | is_occupied     ||     |     |   X |   X |     |     |     |   X |
+/// | is_continuation ||     |     |     |   X |   X |     |     |     |
+/// | is_shifted      ||     |     |     |   X |   X |   X |     |     |
+/// | remainder       || 0x0 | 0x0 | 0x2 | 0x6 | 0xe | 0x1 | 0x0 | 0x2 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | run             ||            [===============] [===]       [===]|
+/// | cluster         ||            [=====================]       [===]|
+/// +-----------------++-----------------------------------------------|
+/// ```
+///
+/// The entire array works like a ring-buffer and operations can over- and underflow:
+///
+/// ```text
+/// x           = "last"
+/// h(x)        = 0x11355343431323f3
+/// h(x) & 0x7f = 0x73
+/// remainder   = 0x3
+/// quotient    = 0x7
+///
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | position        ||   0 |   1 |   2 |   3 |   4 |   5 |   6 |   7 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | is_occupied     ||     |     |   X |   X |     |     |     |   X |
+/// | is_continuation ||   X |     |     |   X |   X |     |     |     |
+/// | is_shifted      ||   X |     |     |   X |   X |   X |     |     |
+/// | remainder       || 0x3 | 0x0 | 0x2 | 0x6 | 0xe | 0x1 | 0x0 | 0x2 |
+/// +-----------------++-----+-----+-----+-----+-----+-----+-----+-----+
+/// | run             ||====]       [===============] [===]       [====|
+/// | cluster         ||====]       [=====================]       [====|
+/// +-----------------++-----------------------------------------------|
+/// ```
+///
+/// ## Lookup
+/// The lookup basically follows the insertion procedure.
+///
 ///
 /// # See Also
 /// - `std::collections::HashSet`: has a false positive rate of 0%, but also needs to store all
@@ -265,11 +410,11 @@ where
         self.n_elements = 0;
     }
 
-    fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
+    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
     where
         T: Hash,
     {
-        let (quotient, remainder) = self.calc_quotient_remainder(t);
+        let (quotient, remainder) = self.calc_quotient_remainder(obj);
         let (present, mut position, run_exists, start_of_run) =
             self.scan(quotient, remainder, true);
 

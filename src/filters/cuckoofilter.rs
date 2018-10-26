@@ -74,7 +74,7 @@ pub struct CuckooFilterFull;
 /// be added there and we are done.
 ///
 /// ```text
-/// f(x)  = 0x3
+/// f(x)   = 0x3
 /// h_1(x) = 0x0
 /// h_2(x) = (h_1(x) ^ f(x)) & 0x3 = (0x0 ^ 0x3) & 0x3 = 0x3
 ///
@@ -93,7 +93,7 @@ pub struct CuckooFilterFull;
 /// distinguish between them.
 ///
 /// ```text
-/// f(x)  = 0x7
+/// f(x)   = 0x7
 /// h_1(x) = 0x0
 /// h_2(x) = (h_1(x) ^ f(x)) & 0x3 = (0x0 ^ 0x7) & 0x3 = 0x3
 ///
@@ -444,11 +444,11 @@ where
     ///
     /// Inserting the same element multiple times is supported, but keep in mind that after
     /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`.
-    fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
+    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
     where
         T: Hash,
     {
-        let (mut f, i1, i2) = self.start(t);
+        let (mut f, i1, i2) = self.start(obj);
 
         if self.write_to_bucket(i1, f) {
             self.n_elements += 1;
