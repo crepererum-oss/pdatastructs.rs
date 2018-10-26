@@ -74,7 +74,7 @@ pub struct CuckooFilterFull;
 /// be added there and we are done.
 ///
 /// ```text
-/// f(x)  = 0x3
+/// f(x)   = 0x3
 /// h_1(x) = 0x0
 /// h_2(x) = (h_1(x) ^ f(x)) & 0x3 = (0x0 ^ 0x3) & 0x3 = 0x3
 ///
@@ -93,7 +93,7 @@ pub struct CuckooFilterFull;
 /// distinguish between them.
 ///
 /// ```text
-/// f(x)  = 0x7
+/// f(x)   = 0x7
 /// h_1(x) = 0x0
 /// h_2(x) = (h_1(x) ^ f(x)) & 0x3 = (0x0 ^ 0x7) & 0x3 = 0x3
 ///
