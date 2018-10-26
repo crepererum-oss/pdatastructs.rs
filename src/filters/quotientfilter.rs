@@ -410,11 +410,11 @@ where
         self.n_elements = 0;
     }
 
-    fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
+    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
     where
         T: Hash,
     {
-        let (quotient, remainder) = self.calc_quotient_remainder(t);
+        let (quotient, remainder) = self.calc_quotient_remainder(obj);
         let (present, mut position, run_exists, start_of_run) =
             self.scan(quotient, remainder, true);
 

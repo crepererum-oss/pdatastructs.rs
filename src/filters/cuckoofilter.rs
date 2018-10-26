@@ -444,11 +444,11 @@ where
     ///
     /// Inserting the same element multiple times is supported, but keep in mind that after
     /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`.
-    fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
+    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
     where
         T: Hash,
     {
-        let (mut f, i1, i2) = self.start(t);
+        let (mut f, i1, i2) = self.start(obj);
 
         if self.write_to_bucket(i1, f) {
             self.n_elements += 1;

@@ -23,7 +23,7 @@ pub trait Filter {
     /// The method may return an error under certain conditions. When this happens, the
     /// user-visible state is not altered, i.e. the element was not added to the filter. The
     /// internal state may have changed though.
-    fn insert<T>(&mut self, t: &T) -> Result<(), Self::InsertErr>
+    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
     where
         T: Hash;
 
