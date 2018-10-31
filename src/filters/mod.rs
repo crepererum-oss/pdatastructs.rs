@@ -4,6 +4,7 @@ pub mod bloomfilter;
 pub mod cuckoofilter;
 pub mod quotientfilter;
 
+use std::fmt::Debug;
 use std::hash::Hash;
 
 /// A filter is a set-like data structure, that keeps track of elements it has seen without
@@ -13,7 +14,7 @@ use std::hash::Hash;
 /// This kind of lookup is also referred to as Approximate Membership Queries (AMQs).
 pub trait Filter {
     /// Error type that may occur during insertion.
-    type InsertErr;
+    type InsertErr: Debug;
 
     /// Clear state of the filter, so that it behaves like a fresh one.
     fn clear(&mut self);
