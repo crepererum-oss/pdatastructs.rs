@@ -1,6 +1,7 @@
 //! Filters, Approximate Membership Queries (AMQs).
 
 pub mod bloomfilter;
+pub mod compat;
 pub mod cuckoofilter;
 pub mod quotientfilter;
 
@@ -12,7 +13,10 @@ use std::hash::Hash;
 /// negative rate of 0%.
 ///
 /// This kind of lookup is also referred to as Approximate Membership Queries (AMQs).
-pub trait Filter {
+pub trait Filter<T>
+where
+    T: Hash,
+{
     /// Error type that may occur during insertion.
     type InsertErr: Debug;
 
@@ -24,9 +28,7 @@ pub trait Filter {
     /// The method may return an error under certain conditions. When this happens, the
     /// user-visible state is not altered, i.e. the element was not added to the filter. The
     /// internal state may have changed though.
-    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
-    where
-        T: Hash;
+    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr>;
 
     /// Check if filters is empty, i.e. contains no elements.
     fn is_empty(&self) -> bool;
@@ -35,7 +37,5 @@ pub trait Filter {
     fn len(&self) -> usize;
 
     /// Guess if the given element was added to the filter.
-    fn query<T>(&self, obj: &T) -> bool
-    where
-        T: Hash;
+    fn query(&self, obj: &T) -> bool;
 }

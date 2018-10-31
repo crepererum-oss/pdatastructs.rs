@@ -4,6 +4,7 @@ use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::marker::PhantomData;
 
 use hyperloglog_data::{
     BIAS_DATA_OFFSET, BIAS_DATA_VEC, RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC,
@@ -67,16 +68,21 @@ use hyperloglog_data::{
 ///   Cardinality Estimation Algorithm", Stefan Heule, Marc Nunkesser, Alexander Hall, 2016](https://goo.gl/iU8Ig)
 /// - [Wikipedia: HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
 #[derive(Clone)]
-pub struct HyperLogLog<B = BuildHasherDefault<DefaultHasher>>
+pub struct HyperLogLog<T, B = BuildHasherDefault<DefaultHasher>>
 where
+    T: Hash,
     B: BuildHasher + Clone + Eq,
 {
     registers: Vec<u8>,
     b: usize,
     buildhasher: B,
+    phantom: PhantomData<T>,
 }
 
-impl HyperLogLog {
+impl<T> HyperLogLog<T>
+where
+    T: Hash,
+{
     /// Creates a new, empty HyperLogLog.
     ///
     /// - `b` number of bits used for register selection, number of registers within the
@@ -89,8 +95,9 @@ impl HyperLogLog {
     }
 }
 
-impl<B> HyperLogLog<B>
+impl<T, B> HyperLogLog<T, B>
 where
+    T: Hash,
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `new` but with a specific `BuildHasher`.
@@ -107,6 +114,7 @@ where
             registers,
             b,
             buildhasher,
+            phantom: PhantomData,
         }
     }
 
@@ -131,10 +139,7 @@ where
     }
 
     /// Adds an element to the HyperLogLog.
-    pub fn add<T>(&mut self, obj: &T)
-    where
-        T: Hash,
-    {
+    pub fn add(&mut self, obj: &T) {
         let mut hasher = self.buildhasher.build_hasher();
         obj.hash(&mut hasher);
         let h: u64 = hasher.finish();
@@ -305,13 +310,16 @@ where
     }
 }
 
-impl fmt::Debug for HyperLogLog {
+impl<T> fmt::Debug for HyperLogLog<T>
+where
+    T: Hash,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "HyperLogLog {{ b: {} }}", self.b)
     }
 }
 
-impl<T> Extend<T> for HyperLogLog
+impl<T> Extend<T> for HyperLogLog<T>
 where
     T: Hash,
 {
@@ -330,18 +338,18 @@ mod tests {
     #[test]
     #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 16")]
     fn new_panics_b3() {
-        HyperLogLog::new(3);
+        HyperLogLog::<u64>::new(3);
     }
 
     #[test]
     #[should_panic(expected = "b (17) must be larger or equal than 4 and smaller or equal than 16")]
     fn new_panics_b17() {
-        HyperLogLog::new(17);
+        HyperLogLog::<u64>::new(17);
     }
 
     #[test]
     fn getter() {
-        let hll = HyperLogLog::new(8);
+        let hll = HyperLogLog::<u64>::new(8);
         assert_eq!(hll.b(), 8);
         assert_eq!(hll.m(), 1 << 8);
         hll.buildhasher();
@@ -349,13 +357,13 @@ mod tests {
 
     #[test]
     fn relative_error() {
-        let hll = HyperLogLog::new(4);
+        let hll = HyperLogLog::<u64>::new(4);
         assert!((hll.relative_error() - 0.2597).abs() < 0.001);
     }
 
     #[test]
     fn empty() {
-        let hll = HyperLogLog::new(8);
+        let hll = HyperLogLog::<u64>::new(8);
         assert_eq!(hll.count(), 0);
         assert!(hll.is_empty());
     }
@@ -503,22 +511,23 @@ mod tests {
     #[test]
     #[should_panic(expected = "b must be equal (left=5, right=12)")]
     fn merge_panics_p() {
-        let mut hll1 = HyperLogLog::new(5);
-        let hll2 = HyperLogLog::new(12);
+        let mut hll1 = HyperLogLog::<u64>::new(5);
+        let hll2 = HyperLogLog::<u64>::new(12);
         hll1.merge(&hll2);
     }
 
     #[test]
     #[should_panic(expected = "buildhasher must be equal")]
     fn merge_panics_buildhasher() {
-        let mut hll1 = HyperLogLog::with_hash(12, BuildHasherSeeded::new(0));
-        let hll2 = HyperLogLog::with_hash(12, BuildHasherSeeded::new(1));
+        let mut hll1 =
+            HyperLogLog::<u64, BuildHasherSeeded>::with_hash(12, BuildHasherSeeded::new(0));
+        let hll2 = HyperLogLog::<u64, BuildHasherSeeded>::with_hash(12, BuildHasherSeeded::new(1));
         hll1.merge(&hll2);
     }
 
     #[test]
     fn debug() {
-        let hll = HyperLogLog::new(12);
+        let hll = HyperLogLog::<u64>::new(12);
         assert_eq!(format!("{:?}", hll), "HyperLogLog { b: 12 }");
     }
 

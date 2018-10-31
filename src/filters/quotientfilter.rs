@@ -1,6 +1,7 @@
 //! QuotientFilter implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::marker::PhantomData;
 use std::mem::size_of;
 
 use fixedbitset::FixedBitSet;
@@ -211,8 +212,9 @@ pub struct QuotientFilterFull;
 /// - ["Don’t Thrash: How to Cache your Hash on Flash" (long version), Michael A. Bender and others, 2012](https://www.vldb.org/pvldb/vol5/p1627_michaelabender_vldb2012.pdf)
 /// - [Wikipedia: Quotient Filter](https://en.wikipedia.org/wiki/Quotient_filter)
 #[derive(Clone, Debug)]
-pub struct QuotientFilter<B = BuildHasherDefault<DefaultHasher>>
+pub struct QuotientFilter<T, B = BuildHasherDefault<DefaultHasher>>
 where
+    T: Hash,
     B: BuildHasher + Clone + Eq,
 {
     is_occupied: FixedBitSet,
@@ -222,9 +224,13 @@ where
     bits_quotient: usize,
     buildhasher: B,
     n_elements: usize,
+    phantom: PhantomData<T>,
 }
 
-impl QuotientFilter {
+impl<T> QuotientFilter<T>
+where
+    T: Hash,
+{
     /// Create new quotient filter with:
     ///
     /// - `bits_quotient`: number of bits used for a quotient, aka `2^bits_quotient` slots will be
@@ -239,8 +245,9 @@ impl QuotientFilter {
     }
 }
 
-impl<B> QuotientFilter<B>
+impl<T, B> QuotientFilter<T, B>
 where
+    T: Hash,
     B: BuildHasher + Clone + Eq,
 {
     /// Create new quotient filter with:
@@ -282,6 +289,7 @@ where
             bits_quotient,
             buildhasher,
             n_elements: 0,
+            phantom: PhantomData,
         }
     }
 
@@ -295,10 +303,7 @@ where
         self.remainders.element_bits()
     }
 
-    fn calc_quotient_remainder<T>(&self, obj: &T) -> (usize, usize)
-    where
-        T: Hash,
-    {
+    fn calc_quotient_remainder(&self, obj: &T) -> (usize, usize) {
         let bits_remainder = self.bits_remainder();
         let mut hasher = self.buildhasher.build_hasher();
         obj.hash(&mut hasher);
@@ -395,8 +400,9 @@ where
     }
 }
 
-impl<B> Filter for QuotientFilter<B>
+impl<T, B> Filter<T> for QuotientFilter<T, B>
 where
+    T: Hash,
     B: BuildHasher + Clone + Eq,
 {
     type InsertErr = QuotientFilterFull;
@@ -410,10 +416,7 @@ where
         self.n_elements = 0;
     }
 
-    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
-    where
-        T: Hash,
-    {
+    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr> {
         let (quotient, remainder) = self.calc_quotient_remainder(obj);
         let (present, mut position, run_exists, start_of_run) =
             self.scan(quotient, remainder, true);
@@ -483,10 +486,7 @@ where
         self.n_elements
     }
 
-    fn query<T>(&self, obj: &T) -> bool
-    where
-        T: Hash,
-    {
+    fn query(&self, obj: &T) -> bool {
         let (quotient, remainder) = self.calc_quotient_remainder(obj);
         let (present, _position, _run_exists, _start_of_run) =
             self.scan(quotient, remainder, false);
@@ -502,7 +502,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "bits_quotient (0) must be greater than 0")]
     fn new_bits_quotient_0() {
-        QuotientFilter::with_params(0, 16);
+        QuotientFilter::<u64>::with_params(0, 16);
     }
 
     #[cfg(target_pointer_width = "32")]
@@ -511,7 +511,7 @@ mod tests {
         expected = "bits_remainder (0) must be greater than 0 and smaller or equal than 32"
     )]
     fn new_bits_remainder_0() {
-        QuotientFilter::with_params(3, 0);
+        QuotientFilter::<u64>::with_params(3, 0);
     }
 
     #[cfg(target_pointer_width = "64")]
@@ -520,7 +520,7 @@ mod tests {
         expected = "bits_remainder (0) must be greater than 0 and smaller or equal than 64"
     )]
     fn new_bits_remainder_0() {
-        QuotientFilter::with_params(3, 0);
+        QuotientFilter::<u64>::with_params(3, 0);
     }
 
     #[cfg(target_pointer_width = "32")]
@@ -529,7 +529,7 @@ mod tests {
         expected = "bits_remainder (33) must be greater than 0 and smaller or equal than 32"
     )]
     fn new_bits_remainder_too_large() {
-        QuotientFilter::with_params(3, 33);
+        QuotientFilter::<u64>::with_params(3, 33);
     }
 
     #[cfg(target_pointer_width = "64")]
@@ -538,7 +538,7 @@ mod tests {
         expected = "bits_remainder (65) must be greater than 0 and smaller or equal than 64"
     )]
     fn new_bits_remainder_too_large() {
-        QuotientFilter::with_params(3, 65);
+        QuotientFilter::<u64>::with_params(3, 65);
     }
 
     #[test]
@@ -546,7 +546,7 @@ mod tests {
         expected = "bits_remainder (5) + bits_quotient (60) must be smaller or equal than 64"
     )]
     fn new_too_many_bits() {
-        QuotientFilter::with_params(60, 5);
+        QuotientFilter::<u64>::with_params(60, 5);
     }
 
     #[test]

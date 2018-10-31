@@ -1,6 +1,8 @@
 //! Hash-related utils.
+use std::any::TypeId;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{BuildHasher, Hash, Hasher};
+use std::marker::PhantomData;
 
 /// Builder for iterators for multiple hash function results for the same given objects.
 ///
@@ -207,6 +209,70 @@ impl BuildHasher for BuildHasherSeeded {
         let mut h = DefaultHasher::default();
         h.write_usize(self.seed);
         h
+    }
+}
+
+/// Hash placeholder that can be used to make certain data structures accept multiple data types.
+///
+/// # Example
+/// ```
+/// use pdatastructs::filters::Filter;
+/// use pdatastructs::filters::bloomfilter::BloomFilter;
+/// use pdatastructs::hash_utils::AnyHash;
+///
+/// // set up filter
+/// let false_positive_rate = 0.02;  // = 2%
+/// let expected_elements = 1000;
+/// let mut filter = BloomFilter::<AnyHash>::with_properties(expected_elements, false_positive_rate);
+///
+/// // add different types
+/// filter.insert(&AnyHash::new("1"));
+/// filter.insert(&AnyHash::new(&1u64));
+///
+/// // query
+/// assert!(filter.query(&AnyHash::new("1")));
+/// assert!(filter.query(&AnyHash::new(&1u64)));
+/// assert!(!filter.query(&AnyHash::new(&1u32)));
+/// ```
+///
+/// # How It Works
+/// During construction, a 64bit hash of the object as well as the `TypeID` of the object type will
+/// be preserved. Both will later be fed into the target hasher of the used data structure.
+#[derive(Debug)]
+pub struct AnyHash<H = DefaultHasher>
+where
+    H: Hasher + Default,
+{
+    hash_obj: u64,
+    type_id: TypeId,
+    phantom: PhantomData<H>,
+}
+
+impl<H> AnyHash<H>
+where
+    H: Hasher + Default,
+{
+    /// Create new hash placeholder for given object.
+    pub fn new<T>(obj: &T) -> Self
+    where
+        T: Hash + 'static + ?Sized,
+    {
+        let mut hasher_obj = H::default();
+        obj.hash(&mut hasher_obj);
+        let hash_obj = hasher_obj.finish();
+
+        Self {
+            hash_obj,
+            type_id: TypeId::of::<T>(),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl Hash for AnyHash {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.type_id.hash(state);
+        self.hash_obj.hash(state);
     }
 }
 
