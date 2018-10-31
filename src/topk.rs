@@ -119,7 +119,7 @@ pub struct TopK<T>
 where
     T: Clone + Eq + Hash + Ord,
 {
-    cms: CountMinSketch,
+    cms: CountMinSketch<T>,
     obj2count: HashMap<Rc<T>, usize>,
     tree: BTreeSet<TreeEntry<T>>,
     k: usize,
@@ -136,7 +136,7 @@ where
     ///   hold. Refer to its documentation about parameter selection.
     ///
     /// Panics if `k == 0`.
-    pub fn new(k: usize, cms: CountMinSketch) -> Self {
+    pub fn new(k: usize, cms: CountMinSketch<T>) -> Self {
         assert!(k > 0, "k must be greater than 0");
 
         Self {

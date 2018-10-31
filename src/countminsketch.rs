@@ -3,6 +3,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::f64;
 use std::fmt;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash};
+use std::marker::PhantomData;
 
 use num_traits::{CheckedAdd, One, Unsigned, Zero};
 
@@ -21,7 +22,7 @@ use hash_utils::HashIterBuilder;
 /// // set up filter
 /// let epsilon = 0.1;  // error threshold
 /// let delta = 0.2;  // epsilon is hit in (1 - 0.2) * 100% = 80%
-/// let mut cms = CountMinSketch::<u32>::with_point_query_properties(epsilon, delta);
+/// let mut cms = CountMinSketch::<&str, u32>::with_point_query_properties(epsilon, delta);
 ///
 /// // add some data
 /// cms.add(&"my super long string");
@@ -108,8 +109,9 @@ use hash_utils::HashIterBuilder;
 /// - ["Count-Min Sketch", Graham Cormode, 2009](http://dimacs.rutgers.edu/~graham/pubs/papers/cmencyc.pdf)
 /// - [Wikipedia: Count–min sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
 #[derive(Clone)]
-pub struct CountMinSketch<C = usize, B = BuildHasherDefault<DefaultHasher>>
+pub struct CountMinSketch<T, C = usize, B = BuildHasherDefault<DefaultHasher>>
 where
+    T: Hash,
     C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
     B: BuildHasher + Clone + Eq,
 {
@@ -117,10 +119,12 @@ where
     w: usize,
     d: usize,
     builder: HashIterBuilder<B>,
+    phantom: PhantomData<T>,
 }
 
-impl<C> CountMinSketch<C>
+impl<T, C> CountMinSketch<T, C>
 where
+    T: Hash,
     C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
 {
     /// Create new CountMinSketch based on table size.
@@ -152,8 +156,9 @@ where
     }
 }
 
-impl<C, B> CountMinSketch<C, B>
+impl<T, C, B> CountMinSketch<T, C, B>
 where
+    T: Hash,
     C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
     B: BuildHasher + Clone + Eq,
 {
@@ -165,6 +170,7 @@ where
             w,
             d,
             builder: HashIterBuilder::new(w, d, buildhasher),
+            phantom: PhantomData,
         }
     }
 
@@ -207,18 +213,12 @@ where
     }
 
     /// Add one to the counter of the given element.
-    pub fn add<T>(&mut self, obj: &T)
-    where
-        T: Hash,
-    {
+    pub fn add(&mut self, obj: &T) {
         self.add_n(&obj, &C::one())
     }
 
     /// Add `n` to the counter of the given element.
-    pub fn add_n<T>(&mut self, obj: &T, n: &C)
-    where
-        T: Hash,
-    {
+    pub fn add_n(&mut self, obj: &T, n: &C) {
         for (i, pos) in self.builder.iter_for(obj).enumerate() {
             let x = i * self.w + pos;
             self.table[x] = self.table[x].checked_add(n).unwrap();
@@ -226,10 +226,7 @@ where
     }
 
     /// Runs a point query, i.e. a query for the count of a single object.
-    pub fn query_point<T>(&self, obj: &T) -> C
-    where
-        T: Hash,
-    {
+    pub fn query_point(&self, obj: &T) -> C {
         self.builder
             .iter_for(obj)
             .enumerate()
@@ -275,13 +272,16 @@ where
     }
 }
 
-impl fmt::Debug for CountMinSketch {
+impl<T> fmt::Debug for CountMinSketch<T>
+where
+    T: Hash,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "CountMinSketch {{ w: {}, d: {} }}", self.w, self.d)
     }
 }
 
-impl<T> Extend<T> for CountMinSketch
+impl<T> Extend<T> for CountMinSketch<T>
 where
     T: Hash,
 {
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn getter() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::<u64>::with_params(10, 20);
         assert_eq!(cms.w(), 10);
         assert_eq!(cms.d(), 20);
         cms.buildhasher();
@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn properties() {
-        let cms = CountMinSketch::<usize>::with_point_query_properties(0.01, 0.1);
+        let cms = CountMinSketch::<u64>::with_point_query_properties(0.01, 0.1);
         assert_eq!(cms.w(), 272);
         assert_eq!(cms.d(), 3);
     }
@@ -315,31 +315,31 @@ mod tests {
     #[test]
     #[should_panic(expected = "epsilon must be greater than 0")]
     fn properties_panics_epsilon0() {
-        CountMinSketch::<usize>::with_point_query_properties(0., 0.1);
+        CountMinSketch::<u64>::with_point_query_properties(0., 0.1);
     }
 
     #[test]
     #[should_panic(expected = "delta (0) must be greater than 0 and smaller than 1")]
     fn properties_panics_delta0() {
-        CountMinSketch::<usize>::with_point_query_properties(0.01, 0.);
+        CountMinSketch::<u64>::with_point_query_properties(0.01, 0.);
     }
 
     #[test]
     #[should_panic(expected = "delta (1) must be greater than 0 and smaller than 1")]
     fn properties_panics_delta1() {
-        CountMinSketch::<usize>::with_point_query_properties(0.01, 1.);
+        CountMinSketch::<u64>::with_point_query_properties(0.01, 1.);
     }
 
     #[test]
     fn empty() {
-        let cms = CountMinSketch::<usize>::with_params(10, 10);
-        assert_eq!(cms.query_point(&1), 0);
+        let cms = CountMinSketch::<u64>::with_params(10, 10);
+        assert_eq!(cms.query_point(&1u64), 0);
         assert!(cms.is_empty());
     }
 
     #[test]
     fn add_1() {
-        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
         cms.add(&1);
         assert_eq!(cms.query_point(&1), 1);
@@ -348,7 +348,7 @@ mod tests {
 
     #[test]
     fn add_2() {
-        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
         cms.add(&1);
         cms.add(&1);
@@ -358,7 +358,7 @@ mod tests {
 
     #[test]
     fn add_2_1a() {
-        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
         cms.add(&1);
         cms.add(&2);
@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn add_2_1b() {
-        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
         cms.add_n(&1, &2);
         cms.add(&2);
@@ -381,8 +381,8 @@ mod tests {
 
     #[test]
     fn merge() {
-        let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
-        let mut cms2 = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms1 = CountMinSketch::<u64>::with_params(10, 10);
+        let mut cms2 = CountMinSketch::<u64>::with_params(10, 10);
 
         cms1.add_n(&1, &1);
         cms1.add_n(&2, &2);
@@ -408,28 +408,28 @@ mod tests {
     #[test]
     #[should_panic(expected = "number of columns (w) must be equal (left=10, right=20)")]
     fn merge_panics_w() {
-        let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
-        let cms2 = CountMinSketch::<usize>::with_params(20, 10);
+        let mut cms1 = CountMinSketch::<u64>::with_params(10, 10);
+        let cms2 = CountMinSketch::<u64>::with_params(20, 10);
         cms1.merge(&cms2);
     }
 
     #[test]
     #[should_panic(expected = "number of rows (d) must be equal (left=10, right=20)")]
     fn merge_panics_d() {
-        let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
-        let cms2 = CountMinSketch::<usize>::with_params(10, 20);
+        let mut cms1 = CountMinSketch::<u64>::with_params(10, 10);
+        let cms2 = CountMinSketch::<u64>::with_params(10, 20);
         cms1.merge(&cms2);
     }
 
     #[test]
     #[should_panic(expected = "buildhasher must be equal")]
     fn merge_panics_buildhasher() {
-        let mut cms1 = CountMinSketch::<usize, BuildHasherSeeded>::with_params_and_hasher(
+        let mut cms1 = CountMinSketch::<u64, usize, BuildHasherSeeded>::with_params_and_hasher(
             10,
             10,
             BuildHasherSeeded::new(0),
         );
-        let cms2 = CountMinSketch::<usize, BuildHasherSeeded>::with_params_and_hasher(
+        let cms2 = CountMinSketch::<u64, usize, BuildHasherSeeded>::with_params_and_hasher(
             10,
             10,
             BuildHasherSeeded::new(1),
@@ -439,7 +439,7 @@ mod tests {
 
     #[test]
     fn clear() {
-        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
         cms.add(&1);
         assert_eq!(cms.query_point(&1), 1);
@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     fn clone() {
-        let mut cms1 = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms1 = CountMinSketch::<u64>::with_params(10, 10);
 
         cms1.add(&1);
         assert_eq!(cms1.query_point(&1), 1);
@@ -471,13 +471,13 @@ mod tests {
 
     #[test]
     fn debug() {
-        let cms = CountMinSketch::<usize>::with_params(10, 20);
+        let cms = CountMinSketch::<u64>::with_params(10, 20);
         assert_eq!(format!("{:?}", cms), "CountMinSketch { w: 10, d: 20 }");
     }
 
     #[test]
     fn extend() {
-        let mut cms = CountMinSketch::<usize>::with_params(10, 10);
+        let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
         cms.extend(vec![1, 1]);
         assert_eq!(cms.query_point(&1), 2);
