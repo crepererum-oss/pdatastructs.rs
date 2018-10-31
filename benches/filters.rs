@@ -11,7 +11,7 @@ use pdatastructs::rand::{ChaChaRng, SeedableRng};
 
 fn run_insert_many<F>(mut filter: F, b: &mut Bencher)
 where
-    F: Filter,
+    F: Filter<u64>,
 {
     let mut obj: u64 = 0;
 

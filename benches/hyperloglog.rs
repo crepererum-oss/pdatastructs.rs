@@ -8,7 +8,7 @@ use pdatastructs::hyperloglog::HyperLogLog;
 fn hyperloglog_add_single(c: &mut Criterion) {
     c.bench_function("hyperloglog_add_single", |b| {
         let address_bits = 4; // so we store 2^4 = 16 registers in total
-        let mut hll = HyperLogLog::new(address_bits);
+        let mut hll = HyperLogLog::<&str>::new(address_bits);
         let obj = "foo bar";
 
         b.iter(|| {
@@ -20,7 +20,7 @@ fn hyperloglog_add_single(c: &mut Criterion) {
 fn hyperloglog_count_empty(c: &mut Criterion) {
     c.bench_function("hyperloglog_count_empty", |b| {
         let address_bits = 4; // so we store 2^4 = 16 registers in total
-        let hll = HyperLogLog::new(address_bits);
+        let hll = HyperLogLog::<u64>::new(address_bits);
 
         b.iter(|| {
             hll.count();
