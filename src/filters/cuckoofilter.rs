@@ -2,6 +2,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::marker::PhantomData;
 
 use rand::Rng;
 use succinct::{IntVec, IntVecMut, IntVector};
@@ -131,8 +132,9 @@ pub struct CuckooFilterFull;
 /// - ["Cuckoo Filter: Practically Better Than Bloom", Bin Fan, David G. Andersen, Michael
 ///   Kaminsky, Michael D. Mitzenmacher, 2014](https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf).
 #[derive(Clone)]
-pub struct CuckooFilter<R, B = BuildHasherDefault<DefaultHasher>>
+pub struct CuckooFilter<T, R, B = BuildHasherDefault<DefaultHasher>>
 where
+    T: Hash,
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
@@ -143,10 +145,12 @@ where
     n_buckets: usize,
     l_fingerprint: usize,
     rng: R,
+    phantom: PhantomData<T>,
 }
 
-impl<R> CuckooFilter<R>
+impl<T, R> CuckooFilter<T, R>
 where
+    T: Hash,
     R: Rng,
 {
     /// Create new CuckooFilter with:
@@ -183,8 +187,9 @@ where
     }
 }
 
-impl<R, B> CuckooFilter<R, B>
+impl<T, R, B> CuckooFilter<T, R, B>
 where
+    T: Hash,
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
@@ -236,6 +241,7 @@ where
             n_buckets,
             l_fingerprint,
             rng,
+            phantom: PhantomData,
         }
     }
 
@@ -337,10 +343,7 @@ where
     ///
     /// Returns `true` if element was in the filter, `false` if it was not in which case the operation did not modify
     /// the filter.
-    pub fn delete<T>(&mut self, t: &T) -> bool
-    where
-        T: Hash,
-    {
+    pub fn delete(&mut self, t: &T) -> bool {
         let (f, i1, i2) = self.start(t);
 
         if self.remove_from_bucket(i1, f) {
@@ -354,20 +357,14 @@ where
         false
     }
 
-    fn start<T>(&self, t: &T) -> (u64, usize, usize)
-    where
-        T: Hash,
-    {
+    fn start(&self, t: &T) -> (u64, usize, usize) {
         let f = self.fingerprint(t);
         let i1 = self.hash(t);
         let i2 = i1 ^ self.hash(&f);
         (f, i1, i2)
     }
 
-    fn fingerprint<T>(&self, t: &T) -> u64
-    where
-        T: Hash,
-    {
+    fn fingerprint(&self, t: &T) -> u64 {
         let mut hasher = self.buildhasher.build_hasher();
         hasher.write_usize(0); // IV
         t.hash(&mut hasher);
@@ -381,13 +378,13 @@ where
         1 + (hasher.finish() % x_mod)
     }
 
-    fn hash<T>(&self, t: &T) -> usize
+    fn hash<U>(&self, obj: &U) -> usize
     where
-        T: Hash,
+        U: Hash,
     {
         let mut hasher = self.buildhasher.build_hasher();
         hasher.write_usize(1); // IV
-        t.hash(&mut hasher);
+        obj.hash(&mut hasher);
         (hasher.finish() & (self.n_buckets as u64 - 1)) as usize
     }
 
@@ -424,8 +421,9 @@ where
     }
 }
 
-impl<R, B> Filter for CuckooFilter<R, B>
+impl<T, R, B> Filter<T> for CuckooFilter<T, R, B>
 where
+    T: Hash,
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
@@ -444,10 +442,7 @@ where
     ///
     /// Inserting the same element multiple times is supported, but keep in mind that after
     /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`.
-    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
-    where
-        T: Hash,
-    {
+    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr> {
         let (mut f, i1, i2) = self.start(obj);
 
         if self.write_to_bucket(i1, f) {
@@ -494,10 +489,7 @@ where
         self.n_elements
     }
 
-    fn query<T>(&self, obj: &T) -> bool
-    where
-        T: Hash,
-    {
+    fn query(&self, obj: &T) -> bool {
         let (f, i1, i2) = self.start(obj);
 
         if self.has_in_bucket(i1, f) {
@@ -510,8 +502,9 @@ where
     }
 }
 
-impl<R, B> fmt::Debug for CuckooFilter<R, B>
+impl<T, R, B> fmt::Debug for CuckooFilter<T, R, B>
 where
+    T: Hash,
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
@@ -533,43 +526,43 @@ mod tests {
     #[test]
     #[should_panic(expected = "bucketsize (0) must be greater or equal than 2")]
     fn new_panics_bucketsize_0() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 0, 16, 8);
+        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 0, 16, 8);
     }
 
     #[test]
     #[should_panic(expected = "bucketsize (1) must be greater or equal than 2")]
     fn new_panics_bucketsize_1() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 1, 16, 8);
+        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 1, 16, 8);
     }
 
     #[test]
     #[should_panic(expected = "n_buckets (0) must be a power of 2 and greater or equal than 2")]
     fn new_panics_n_buckets_0() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 0, 8);
+        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 0, 8);
     }
 
     #[test]
     #[should_panic(expected = "n_buckets (1) must be a power of 2 and greater or equal than 2")]
     fn new_panics_n_buckets_1() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 1, 8);
+        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 1, 8);
     }
 
     #[test]
     #[should_panic(expected = "n_buckets (5) must be a power of 2 and greater or equal than 2")]
     fn new_panics_n_buckets_5() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 5, 8);
+        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 5, 8);
     }
 
     #[test]
     #[should_panic(expected = "l_fingerprint (0) must be greater than 1 and less or equal than 64")]
     fn new_panics_l_fingerprint_0() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 0);
+        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 0);
     }
 
     #[test]
     #[should_panic(expected = "l_fingerprint (1) must be greater than 1 and less or equal than 64")]
     fn new_panics_l_fingerprint_1() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 1);
+        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 1);
     }
 
     #[test]
@@ -577,19 +570,24 @@ mod tests {
         expected = "l_fingerprint (65) must be greater than 1 and less or equal than 64"
     )]
     fn new_panics_l_fingerprint_65() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 65);
+        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 65);
     }
 
     #[test]
     #[should_panic(expected = "Table size too large")]
     fn new_panics_table_size_overflow_1() {
-        CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), usize::max_value(), 2, 2);
+        CuckooFilter::<u64, ChaChaRng>::with_params(
+            ChaChaRng::from_seed([0; 32]),
+            usize::max_value(),
+            2,
+            2,
+        );
     }
 
     #[test]
     #[should_panic(expected = "Table size too large")]
     fn new_panics_table_size_overflow_2() {
-        CuckooFilter::with_params(
+        CuckooFilter::<u64, ChaChaRng>::with_params(
             ChaChaRng::from_seed([0; 32]),
             2,
             (((usize::max_value() as u128) + 1) / 2) as usize,
@@ -600,7 +598,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Table size too large")]
     fn new_panics_table_size_overflow_3() {
-        CuckooFilter::with_params(
+        CuckooFilter::<u64, ChaChaRng>::with_params(
             ChaChaRng::from_seed([0; 32]),
             2,
             (((usize::max_value() as u128) + 1) / 8) as usize,
@@ -610,7 +608,8 @@ mod tests {
 
     #[test]
     fn getter() {
-        let cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         assert_eq!(cf.bucketsize(), 2);
         assert_eq!(cf.n_buckets(), 16);
         assert_eq!(cf.l_fingerprint(), 8);
@@ -618,7 +617,8 @@ mod tests {
 
     #[test]
     fn is_empty() {
-        let cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         assert!(cf.is_empty());
         assert_eq!(cf.len(), 0);
     }
@@ -677,7 +677,8 @@ mod tests {
 
     #[test]
     fn debug() {
-        let cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         assert_eq!(
             format!("{:?}", cf),
             "CuckooFilter { bucketsize: 2, n_buckets: 16 }"
@@ -698,7 +699,11 @@ mod tests {
 
     #[test]
     fn with_properties_4() {
-        let cf = CuckooFilter::with_properties_4(0.02, 1000, ChaChaRng::from_seed([0; 32]));
+        let cf = CuckooFilter::<u64, ChaChaRng>::with_properties_4(
+            0.02,
+            1000,
+            ChaChaRng::from_seed([0; 32]),
+        );
         assert_eq!(cf.bucketsize(), 4);
         assert_eq!(cf.n_buckets(), 2048);
         assert_eq!(cf.l_fingerprint(), 9);
@@ -706,7 +711,11 @@ mod tests {
 
     #[test]
     fn with_properties_8() {
-        let cf = CuckooFilter::with_properties_8(0.02, 1000, ChaChaRng::from_seed([0; 32]));
+        let cf = CuckooFilter::<u64, ChaChaRng>::with_properties_8(
+            0.02,
+            1000,
+            ChaChaRng::from_seed([0; 32]),
+        );
         assert_eq!(cf.bucketsize(), 8);
         assert_eq!(cf.n_buckets(), 1024);
         assert_eq!(cf.l_fingerprint(), 10);
@@ -715,18 +724,18 @@ mod tests {
     #[test]
     #[should_panic(expected = "expected_elements (0) must be at least 1")]
     fn with_properties_4_panics_expected_elements_0() {
-        CuckooFilter::with_properties_4(0.02, 0, ChaChaRng::from_seed([0; 32]));
+        CuckooFilter::<u64, ChaChaRng>::with_properties_4(0.02, 0, ChaChaRng::from_seed([0; 32]));
     }
 
     #[test]
     #[should_panic(expected = "false_positive_rate (0) must be greater than 0 and smaller than 1")]
     fn with_properties_4_panics_false_positive_rate_0() {
-        CuckooFilter::with_properties_4(0., 1000, ChaChaRng::from_seed([0; 32]));
+        CuckooFilter::<u64, ChaChaRng>::with_properties_4(0., 1000, ChaChaRng::from_seed([0; 32]));
     }
 
     #[test]
     #[should_panic(expected = "false_positive_rate (1) must be greater than 0 and smaller than 1")]
     fn with_properties_4_panics_false_positive_rate_1() {
-        CuckooFilter::with_properties_4(1., 1000, ChaChaRng::from_seed([0; 32]));
+        CuckooFilter::<u64, ChaChaRng>::with_properties_4(1., 1000, ChaChaRng::from_seed([0; 32]));
     }
 }

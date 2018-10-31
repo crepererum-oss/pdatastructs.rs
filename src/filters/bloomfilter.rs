@@ -2,6 +2,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash};
+use std::marker::PhantomData;
 
 use fixedbitset::FixedBitSet;
 use void::Void;
@@ -59,16 +60,21 @@ use hash_utils::HashIterBuilder;
 /// - ["Space/Time Trade-offs in Hash Coding with Allowable Errors", Burton H. Bloom, 1970](http://dmod.eu/deca/ft_gateway.cfm.pdf)
 /// - [Wikipedia: Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter)
 #[derive(Clone)]
-pub struct BloomFilter<B = BuildHasherDefault<DefaultHasher>>
+pub struct BloomFilter<T, B = BuildHasherDefault<DefaultHasher>>
 where
+    T: Hash,
     B: BuildHasher + Clone + Eq,
 {
     bs: FixedBitSet,
     k: usize,
     builder: HashIterBuilder<B>,
+    phantom: PhantomData<T>,
 }
 
-impl BloomFilter {
+impl<T> BloomFilter<T>
+where
+    T: Hash,
+{
     /// Create new, empty BloomFilter with internal parameters.
     ///
     /// - `k` is the number of hash functions
@@ -91,8 +97,9 @@ impl BloomFilter {
     }
 }
 
-impl<B> BloomFilter<B>
+impl<T, B> BloomFilter<T, B>
 where
+    T: Hash,
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `with_params` but with specific `BuildHasher`.
@@ -101,6 +108,7 @@ where
             bs: FixedBitSet::with_capacity(m),
             k,
             builder: HashIterBuilder::new(m, k, buildhasher),
+            phantom: PhantomData,
         }
     }
 
@@ -163,7 +171,10 @@ where
     }
 }
 
-impl Filter for BloomFilter {
+impl<T> Filter<T> for BloomFilter<T>
+where
+    T: Hash,
+{
     type InsertErr = Void;
 
     fn clear(&mut self) {
@@ -174,10 +185,7 @@ impl Filter for BloomFilter {
     ///
     /// If the same element is added multiple times or if an element results in the same hash
     /// signature, this method does not have any effect.
-    fn insert<T>(&mut self, obj: &T) -> Result<(), Self::InsertErr>
-    where
-        T: Hash,
-    {
+    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr> {
         for pos in self.builder.iter_for(obj) {
             self.bs.set(pos, true);
         }
@@ -197,10 +205,7 @@ impl Filter for BloomFilter {
         (-m / k * (1. - x / m).ln()) as usize
     }
 
-    fn query<T>(&self, obj: &T) -> bool
-    where
-        T: Hash,
-    {
+    fn query(&self, obj: &T) -> bool {
         for pos in self.builder.iter_for(obj) {
             if !self.bs[pos] {
                 return false;
@@ -210,13 +215,16 @@ impl Filter for BloomFilter {
     }
 }
 
-impl fmt::Debug for BloomFilter {
+impl<T> fmt::Debug for BloomFilter<T>
+where
+    T: Hash,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "BloomFilter {{ m: {}, k: {} }}", self.bs.len(), self.k)
     }
 }
 
-impl<T> Extend<T> for BloomFilter
+impl<T> Extend<T> for BloomFilter<T>
 where
     T: Hash,
 {
@@ -235,7 +243,7 @@ mod tests {
 
     #[test]
     fn getter() {
-        let bf = BloomFilter::with_params(100, 2);
+        let bf = BloomFilter::<u64>::with_params(100, 2);
         assert_eq!(bf.k(), 2);
         assert_eq!(bf.m(), 100);
         bf.buildhasher();
@@ -243,7 +251,7 @@ mod tests {
 
     #[test]
     fn empty() {
-        let bf = BloomFilter::with_params(100, 2);
+        let bf = BloomFilter::<u64>::with_params(100, 2);
         assert!(!bf.query(&1));
     }
 
@@ -312,30 +320,38 @@ mod tests {
     #[test]
     #[should_panic(expected = "k must be equal (left=2, right=3)")]
     fn union_panics_k() {
-        let mut bf1 = BloomFilter::with_params(100, 2);
-        let bf2 = BloomFilter::with_params(100, 3);
+        let mut bf1 = BloomFilter::<u64>::with_params(100, 2);
+        let bf2 = BloomFilter::<u64>::with_params(100, 3);
         bf1.union(&bf2);
     }
 
     #[test]
     #[should_panic(expected = "m must be equal (left=100, right=200)")]
     fn union_panics_m() {
-        let mut bf1 = BloomFilter::with_params(100, 2);
-        let bf2 = BloomFilter::with_params(200, 2);
+        let mut bf1 = BloomFilter::<u64>::with_params(100, 2);
+        let bf2 = BloomFilter::<u64>::with_params(200, 2);
         bf1.union(&bf2);
     }
 
     #[test]
     #[should_panic(expected = "buildhasher must be equal")]
     fn union_panics_buildhasher() {
-        let mut bf1 = BloomFilter::with_params_and_hash(100, 2, BuildHasherSeeded::new(0));
-        let bf2 = BloomFilter::with_params_and_hash(100, 2, BuildHasherSeeded::new(1));
+        let mut bf1 = BloomFilter::<u64, BuildHasherSeeded>::with_params_and_hash(
+            100,
+            2,
+            BuildHasherSeeded::new(0),
+        );
+        let bf2 = BloomFilter::<u64, BuildHasherSeeded>::with_params_and_hash(
+            100,
+            2,
+            BuildHasherSeeded::new(1),
+        );
         bf1.union(&bf2);
     }
 
     #[test]
     fn with_properties() {
-        let bf = BloomFilter::with_properties(1000, 0.1);
+        let bf = BloomFilter::<u64>::with_properties(1000, 0.1);
         assert_eq!(bf.k(), 3);
         assert_eq!(bf.m(), 4792);
     }
@@ -343,19 +359,19 @@ mod tests {
     #[test]
     #[should_panic(expected = "n must be greater than 0")]
     fn with_properties_panics_n0() {
-        BloomFilter::with_properties(0, 0.1);
+        BloomFilter::<u64>::with_properties(0, 0.1);
     }
 
     #[test]
     #[should_panic(expected = "p (0) must be greater than 0 and smaller than 1")]
     fn with_properties_panics_p0() {
-        BloomFilter::with_properties(1000, 0.);
+        BloomFilter::<u64>::with_properties(1000, 0.);
     }
 
     #[test]
     #[should_panic(expected = "p (1) must be greater than 0 and smaller than 1")]
     fn with_properties_panics_p1() {
-        BloomFilter::with_properties(1000, 1.);
+        BloomFilter::<u64>::with_properties(1000, 1.);
     }
 
     #[test]
@@ -375,13 +391,13 @@ mod tests {
 
     #[test]
     fn debug() {
-        let bf = BloomFilter::with_params(100, 2);
+        let bf = BloomFilter::<u64>::with_params(100, 2);
         assert_eq!(format!("{:?}", bf), "BloomFilter { m: 100, k: 2 }");
     }
 
     #[test]
     fn extend() {
-        let mut bf = BloomFilter::with_params(100, 2);
+        let mut bf = BloomFilter::<u64>::with_params(100, 2);
 
         bf.extend(vec![1, 2]);
         assert!(bf.query(&1));
