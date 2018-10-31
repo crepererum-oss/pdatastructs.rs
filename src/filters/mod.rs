@@ -1,6 +1,7 @@
 //! Filters, Approximate Membership Queries (AMQs).
 
 pub mod bloomfilter;
+pub mod compat;
 pub mod cuckoofilter;
 pub mod quotientfilter;
 

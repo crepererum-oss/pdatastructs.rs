@@ -2,6 +2,8 @@
 extern crate criterion;
 extern crate pdatastructs;
 
+use std::collections::HashSet;
+
 use criterion::{Bencher, Criterion};
 use pdatastructs::filters::bloomfilter::BloomFilter;
 use pdatastructs::filters::cuckoofilter::CuckooFilter;
@@ -42,6 +44,14 @@ fn cuckoofilter_insert_many(c: &mut Criterion) {
     });
 }
 
+fn hashset_insert_many(c: &mut Criterion) {
+    c.bench_function("hashset_insert_many", |b| {
+        let filter = HashSet::new();
+
+        run_insert_many(filter, b);
+    });
+}
+
 fn quotientfilter_insert_many(c: &mut Criterion) {
     c.bench_function("quotientfilter_insert_many", |b| {
         let bits_quotient = 24;
@@ -56,6 +66,7 @@ criterion_group!(
     benches,
     bloomfilter_insert_many,
     cuckoofilter_insert_many,
+    hashset_insert_many,
     quotientfilter_insert_many
 );
 criterion_main!(benches);
