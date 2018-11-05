@@ -17,9 +17,8 @@ where
         self.clear();
     }
 
-    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr> {
-        self.insert(obj.clone());
-        Ok(())
+    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
+        Ok(self.insert(obj.clone()))
     }
 
     fn is_empty(&self) -> bool {
@@ -50,7 +49,8 @@ mod tests {
         assert_eq!(set.len(), 0);
         assert!(!set.query(&42));
 
-        set.insert(&42).unwrap();
+        assert!(set.insert(&42).unwrap());
+        assert!(!set.insert(&42).unwrap());
         assert!(!set.is_empty());
         assert_eq!(set.len(), 1);
         assert!(set.query(&42));

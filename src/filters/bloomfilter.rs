@@ -185,12 +185,13 @@ where
     ///
     /// If the same element is added multiple times or if an element results in the same hash
     /// signature, this method does not have any effect.
-    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr> {
+    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
+        let mut was_present = true;
         for pos in self.builder.iter_for(obj) {
-            self.bs.set(pos, true);
+            was_present &= self.bs.put(pos);
         }
 
-        Ok(())
+        Ok(!was_present)
     }
 
     fn is_empty(&self) -> bool {
@@ -259,9 +260,18 @@ mod tests {
     fn insert() {
         let mut bf = BloomFilter::with_params(100, 2);
 
-        bf.insert(&1).unwrap();
+        assert!(bf.insert(&1).unwrap());
         assert!(bf.query(&1));
         assert!(!bf.query(&2));
+    }
+
+    #[test]
+    fn double_insert() {
+        let mut bf = BloomFilter::with_params(100, 2);
+
+        assert!(bf.insert(&1).unwrap());
+        assert!(!bf.insert(&1).unwrap());
+        assert!(bf.query(&1));
     }
 
     #[test]

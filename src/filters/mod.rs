@@ -25,10 +25,15 @@ where
 
     /// Insert new element into the filter.
     ///
+    /// In success-case, it will be reported if the element was likely already part of the filter.
+    /// If the element was already known, `false` is returned, otherwise `true`. You may get the
+    /// same result by calling `query`, but calling insert is more efficient then calling `query`
+    /// first and then using `insert` on demand.
+    ///
     /// The method may return an error under certain conditions. When this happens, the
     /// user-visible state is not altered, i.e. the element was not added to the filter. The
     /// internal state may have changed though.
-    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr>;
+    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr>;
 
     /// Check if filters is empty, i.e. contains no elements.
     fn is_empty(&self) -> bool;
