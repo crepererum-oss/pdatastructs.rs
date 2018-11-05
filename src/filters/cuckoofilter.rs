@@ -441,17 +441,19 @@ where
     /// `len` was not increased and the filter content was not altered.
     ///
     /// Inserting the same element multiple times is supported, but keep in mind that after
-    /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`.
-    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr> {
+    /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`. Also, this function
+    /// will always report `Ok(true)` in case of success, even if the same element is inserted
+    /// twice.
+    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
         let (mut f, i1, i2) = self.start(obj);
 
         if self.write_to_bucket(i1, f) {
             self.n_elements += 1;
-            return Ok(());
+            return Ok(true);
         }
         if self.write_to_bucket(i2, f) {
             self.n_elements += 1;
-            return Ok(());
+            return Ok(false);
         }
 
         // cannot write to obvious buckets => relocate
@@ -471,7 +473,7 @@ where
             i ^= self.hash(&f);
             if self.write_to_bucket(i, f) {
                 self.n_elements += 1;
-                return Ok(());
+                return Ok(true);
             }
         }
 
@@ -626,11 +628,19 @@ mod tests {
     #[test]
     fn insert() {
         let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
-        cf.insert(&13).unwrap();
+        assert!(cf.insert(&13).unwrap());
         assert!(!cf.is_empty());
         assert_eq!(cf.len(), 1);
         assert!(cf.query(&13));
         assert!(!cf.query(&42));
+    }
+
+    #[test]
+    fn double_insert() {
+        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        assert!(cf.insert(&13).unwrap());
+        assert!(cf.insert(&13).unwrap());
+        assert!(cf.query(&13));
     }
 
     #[test]

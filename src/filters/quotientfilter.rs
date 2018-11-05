@@ -416,14 +416,14 @@ where
         self.n_elements = 0;
     }
 
-    fn insert(&mut self, obj: &T) -> Result<(), Self::InsertErr> {
+    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
         let (quotient, remainder) = self.calc_quotient_remainder(obj);
         let (present, mut position, run_exists, start_of_run) =
             self.scan(quotient, remainder, true);
 
         // early exit if the element is already present
         if present {
-            return Ok(());
+            return Ok(false);
         }
         // we need to insert the element into the filter
 
@@ -475,7 +475,7 @@ where
 
         // done
         self.n_elements += 1;
-        Ok(())
+        Ok(true)
     }
 
     fn is_empty(&self) -> bool {
@@ -562,7 +562,7 @@ mod tests {
     #[test]
     fn insert() {
         let mut qf = QuotientFilter::with_params(3, 16);
-        qf.insert(&13).unwrap();
+        assert!(qf.insert(&13).unwrap());
         assert!(!qf.is_empty());
         assert_eq!(qf.len(), 1);
         assert!(qf.query(&13));
@@ -572,8 +572,8 @@ mod tests {
     #[test]
     fn double_insert() {
         let mut qf = QuotientFilter::with_params(3, 16);
-        qf.insert(&13).unwrap();
-        qf.insert(&13).unwrap();
+        assert!(qf.insert(&13).unwrap());
+        assert!(!qf.insert(&13).unwrap());
         assert!(!qf.is_empty());
         assert_eq!(qf.len(), 1);
         assert!(qf.query(&13));
