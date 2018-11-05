@@ -158,7 +158,7 @@ where
         let rc = Rc::new(obj);
 
         // always increase CountMinSketch counts
-        self.cms.add(&rc);
+        let count = self.cms.add(&rc);
 
         // check if entry is in top K
         let size = self.obj2count.len();
@@ -182,6 +182,7 @@ where
                 // it's not => check capicity
                 if size < self.k {
                     // space left => add to top k
+                    debug_assert!(count == 1);
                     v.insert(1);
                     self.tree.insert(TreeEntry {
                         obj: Rc::clone(&rc),
@@ -190,7 +191,6 @@ where
                 } else {
                     // not enough space => check if it would be a top k element
 
-                    let count = self.cms.query_point(&rc);
                     // count at this point already contains the +1 from the current insertions
                     // because we've updated the CountMinSketch before the query
 
