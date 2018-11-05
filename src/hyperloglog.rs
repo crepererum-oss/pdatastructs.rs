@@ -103,8 +103,8 @@ where
     /// Same as `new` but with a specific `BuildHasher`.
     pub fn with_hash(b: usize, buildhasher: B) -> Self {
         assert!(
-            (b >= 4) & (b <= 16),
-            "b ({}) must be larger or equal than 4 and smaller or equal than 16",
+            (b >= 4) & (b <= 18),
+            "b ({}) must be larger or equal than 4 and smaller or equal than 18",
             b
         );
 
@@ -336,15 +336,25 @@ mod tests {
     use hash_utils::BuildHasherSeeded;
 
     #[test]
-    #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 16")]
+    #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 18")]
     fn new_panics_b3() {
         HyperLogLog::<u64>::new(3);
     }
 
     #[test]
-    #[should_panic(expected = "b (17) must be larger or equal than 4 and smaller or equal than 16")]
-    fn new_panics_b17() {
-        HyperLogLog::<u64>::new(17);
+    fn new_works_b4() {
+        HyperLogLog::<u64>::new(4);
+    }
+
+    #[test]
+    fn new_works_b18() {
+        HyperLogLog::<u64>::new(18);
+    }
+
+    #[test]
+    #[should_panic(expected = "b (19) must be larger or equal than 4 and smaller or equal than 18")]
+    fn new_panics_b19() {
+        HyperLogLog::<u64>::new(19);
     }
 
     #[test]
