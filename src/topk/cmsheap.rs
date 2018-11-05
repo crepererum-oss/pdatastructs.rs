@@ -66,7 +66,7 @@ where
 /// # Examples
 /// ```
 /// use pdatastructs::countminsketch::CountMinSketch;
-/// use pdatastructs::topk::CMSHeap;
+/// use pdatastructs::topk::cmsheap::CMSHeap;
 ///
 /// // set up filter
 /// let epsilon = 0.1;  // error threshold
