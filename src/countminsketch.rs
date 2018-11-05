@@ -213,19 +213,31 @@ where
     }
 
     /// Add one to the counter of the given element.
-    pub fn add(&mut self, obj: &T) {
+    ///
+    /// Returns guessed count after addition.
+    pub fn add(&mut self, obj: &T) -> C {
         self.add_n(&obj, &C::one())
     }
 
     /// Add `n` to the counter of the given element.
-    pub fn add_n(&mut self, obj: &T, n: &C) {
+    pub fn add_n(&mut self, obj: &T, n: &C) -> C {
+        let mut result = C::zero();
         for (i, pos) in self.builder.iter_for(obj).enumerate() {
             let x = i * self.w + pos;
-            self.table[x] = self.table[x].checked_add(n).unwrap();
+            let current = self.table[x].clone();
+            result = if i == 0 {
+                current.clone()
+            } else {
+                result.min(current.clone())
+            };
+            self.table[x] = current.checked_add(n).unwrap();
         }
+        result.checked_add(n).unwrap()
     }
 
     /// Runs a point query, i.e. a query for the count of a single object.
+    ///
+    /// Returns guessed count after addition.
     pub fn query_point(&self, obj: &T) -> C {
         self.builder
             .iter_for(obj)
@@ -341,7 +353,7 @@ mod tests {
     fn add_1() {
         let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
-        cms.add(&1);
+        assert_eq!(cms.add(&1), 1);
         assert_eq!(cms.query_point(&1), 1);
         assert_eq!(cms.query_point(&2), 0);
     }
@@ -350,8 +362,8 @@ mod tests {
     fn add_2() {
         let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
-        cms.add(&1);
-        cms.add(&1);
+        assert_eq!(cms.add(&1), 1);
+        assert_eq!(cms.add(&1), 2);
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 0);
     }
@@ -360,9 +372,9 @@ mod tests {
     fn add_2_1a() {
         let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
-        cms.add(&1);
-        cms.add(&2);
-        cms.add(&1);
+        assert_eq!(cms.add(&1), 1);
+        assert_eq!(cms.add(&2), 1);
+        assert_eq!(cms.add(&1), 2);
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 1);
         assert_eq!(cms.query_point(&3), 0);
@@ -372,8 +384,8 @@ mod tests {
     fn add_2_1b() {
         let mut cms = CountMinSketch::<u64>::with_params(10, 10);
 
-        cms.add_n(&1, &2);
-        cms.add(&2);
+        assert_eq!(cms.add_n(&1, &2), 2);
+        assert_eq!(cms.add(&2), 1);
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 1);
         assert_eq!(cms.query_point(&3), 0);
