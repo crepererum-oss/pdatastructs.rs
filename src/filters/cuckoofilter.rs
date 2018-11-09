@@ -453,7 +453,7 @@ where
         }
 
         // cannot write to obvious buckets => relocate
-        let table_backup = self.table.clone(); // may be required for rollback
+        let mut log: Vec<(usize, u64)> = vec![];
         let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
 
         for _ in 0..MAX_NUM_KICKS {
@@ -463,6 +463,7 @@ where
 
             // swap table[x] and f
             let tmp = self.table.get(x as u64);
+            log.push((x, tmp));
             self.table.set(x as u64, f);
             f = tmp;
 
@@ -474,7 +475,10 @@ where
         }
 
         // no space left => fail
-        self.table = table_backup; // rollback transaction
+        // restore state beforehand
+        for (pos, data) in log.iter().rev().cloned() {
+            self.table.set(pos as u64, data);
+        }
         Err(CuckooFilterFull)
     }
 
