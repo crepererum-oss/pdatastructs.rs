@@ -8,6 +8,7 @@ use fixedbitset::FixedBitSet;
 use succinct::{IntVec, IntVecMut, IntVector};
 
 use filters::Filter;
+use helpers::all_zero_intvector;
 
 /// Error that signals that the QuotientFilter is full.
 #[derive(Debug)]
@@ -285,7 +286,7 @@ where
             is_occupied: FixedBitSet::with_capacity(len),
             is_continuation: FixedBitSet::with_capacity(len),
             is_shifted: FixedBitSet::with_capacity(len),
-            remainders: IntVector::with_fill(bits_remainder, len as u64, 0),
+            remainders: all_zero_intvector(bits_remainder, len),
             bits_quotient,
             buildhasher,
             n_elements: 0,

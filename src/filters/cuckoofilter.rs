@@ -8,6 +8,7 @@ use rand::Rng;
 use succinct::{IntVec, IntVecMut, IntVector};
 
 use filters::Filter;
+use helpers::all_zero_intvector;
 
 const MAX_NUM_KICKS: usize = 500; // mentioned in paper
 
@@ -228,13 +229,8 @@ where
             .checked_mul(bucketsize)
             .expect("Table size too large");
 
-        // check table_size together w/ l_fingerprint would not overflow
-        table_size
-            .checked_mul(l_fingerprint)
-            .expect("Table size too large");
-
         Self {
-            table: IntVector::with_fill(l_fingerprint, table_size as u64, 0),
+            table: all_zero_intvector(l_fingerprint, table_size),
             n_elements: 0,
             buildhasher: bh,
             bucketsize,
