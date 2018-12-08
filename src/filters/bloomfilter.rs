@@ -7,8 +7,8 @@ use std::marker::PhantomData;
 use fixedbitset::FixedBitSet;
 use void::Void;
 
-use filters::Filter;
-use hash_utils::HashIterBuilder;
+use crate::filters::Filter;
+use crate::hash_utils::HashIterBuilder;
 
 /// A BloomFilter is a set-like data structure, that keeps track of elements it has seen without
 /// the need to store them. Looking up values has a certain false positive rate, but a false
@@ -239,8 +239,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::BloomFilter;
-    use filters::Filter;
-    use hash_utils::BuildHasherSeeded;
+
+    use crate::filters::Filter;
+    use crate::hash_utils::BuildHasherSeeded;
 
     #[test]
     fn getter() {

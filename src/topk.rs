@@ -1,5 +1,5 @@
 //! TopK implementation.
-use countminsketch::CountMinSketch;
+use crate::countminsketch::CountMinSketch;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap};
@@ -166,7 +166,7 @@ where
         match self.obj2count.entry(Rc::clone(&rc)) {
             Entry::Occupied(mut o) => {
                 // it is => increase exact counter
-                let mut n = o.get_mut();
+                let n = o.get_mut();
                 *n += 1;
 
                 // update tree data
@@ -261,7 +261,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::TopK;
-    use countminsketch::CountMinSketch;
+    use crate::countminsketch::CountMinSketch;
 
     #[test]
     #[should_panic(expected = "k must be greater than 0")]

@@ -7,8 +7,8 @@ use std::mem::size_of;
 use fixedbitset::FixedBitSet;
 use succinct::{IntVec, IntVecMut, IntVector};
 
-use filters::Filter;
-use helpers::all_zero_intvector;
+use crate::filters::Filter;
+use crate::helpers::all_zero_intvector;
 
 /// Error that signals that the QuotientFilter is full.
 #[derive(Debug)]
@@ -498,7 +498,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::QuotientFilter;
-    use filters::Filter;
+    use crate::filters::Filter;
 
     #[test]
     #[should_panic(expected = "bits_quotient (0) must be greater than 0")]

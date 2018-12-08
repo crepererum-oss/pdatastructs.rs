@@ -5,7 +5,7 @@ use std::hash::Hash;
 
 use void::Void;
 
-use filters::Filter;
+use crate::filters::Filter;
 
 impl<T> Filter<T> for HashSet<T>
 where
@@ -40,7 +40,7 @@ mod tests {
 
     use void::Void;
 
-    use filters::Filter;
+    use crate::filters::Filter;
 
     #[test]
     fn hashset() {

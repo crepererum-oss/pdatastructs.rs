@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use num_traits::{CheckedAdd, One, Unsigned, Zero};
 
-use hash_utils::HashIterBuilder;
+use crate::hash_utils::HashIterBuilder;
 
 /// A CountMinSketch is a data structure to estimate the frequency of elements in a data stream.
 ///
@@ -295,7 +295,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::CountMinSketch;
-    use hash_utils::BuildHasherSeeded;
+    use crate::hash_utils::BuildHasherSeeded;
 
     #[test]
     fn getter() {

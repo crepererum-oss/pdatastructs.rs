@@ -7,12 +7,8 @@
 #![deny(unsafe_code)]
 #![deny(unused_extern_crates)]
 
-extern crate bytecount;
-extern crate fixedbitset;
-pub extern crate num_traits;
-pub extern crate rand;
-extern crate succinct;
-extern crate void;
+pub use num_traits;
+pub use rand;
 
 pub mod countminsketch;
 pub mod filters;

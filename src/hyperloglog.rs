@@ -6,7 +6,7 @@ use std::fmt;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::marker::PhantomData;
 
-use hyperloglog_data::{
+use crate::hyperloglog_data::{
     BIAS_DATA_OFFSET, BIAS_DATA_VEC, RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC,
     THRESHOLD_DATA_OFFSET, THRESHOLD_DATA_VEC,
 };
@@ -180,11 +180,13 @@ where
         };
 
         let mut idx_right = match idx_left {
-            Some(i) => if i < lookup_array.len() - 1 {
-                Some(i + 1)
-            } else {
-                None
-            },
+            Some(i) => {
+                if i < lookup_array.len() - 1 {
+                    Some(i + 1)
+                } else {
+                    None
+                }
+            }
             _ => None,
         };
 
@@ -245,11 +247,12 @@ where
     pub fn count(&self) -> usize {
         let m = self.registers.len() as f64;
 
-        let z = 1f64 / self
-            .registers
-            .iter()
-            .map(|&x| 2f64.powi(-(i32::from(x))))
-            .sum::<f64>();
+        let z = 1f64
+            / self
+                .registers
+                .iter()
+                .map(|&x| 2f64.powi(-(i32::from(x))))
+                .sum::<f64>();
 
         let e = self.am() * m * m * z;
 
@@ -333,7 +336,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::HyperLogLog;
-    use hash_utils::BuildHasherSeeded;
+    use crate::hash_utils::BuildHasherSeeded;
 
     #[test]
     #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 18")]
