@@ -8,6 +8,7 @@ use rand::Rng;
 use succinct::{IntVec, IntVecMut, IntVector};
 
 use filters::Filter;
+use helpers::all_zero_intvector;
 
 const MAX_NUM_KICKS: usize = 500; // mentioned in paper
 
@@ -228,13 +229,8 @@ where
             .checked_mul(bucketsize)
             .expect("Table size too large");
 
-        // check table_size together w/ l_fingerprint would not overflow
-        table_size
-            .checked_mul(l_fingerprint)
-            .expect("Table size too large");
-
         Self {
-            table: IntVector::with_fill(l_fingerprint, table_size as u64, 0),
+            table: all_zero_intvector(l_fingerprint, table_size),
             n_elements: 0,
             buildhasher: bh,
             bucketsize,
@@ -457,7 +453,7 @@ where
         }
 
         // cannot write to obvious buckets => relocate
-        let table_backup = self.table.clone(); // may be required for rollback
+        let mut log: Vec<(usize, u64)> = vec![];
         let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
 
         for _ in 0..MAX_NUM_KICKS {
@@ -467,6 +463,7 @@ where
 
             // swap table[x] and f
             let tmp = self.table.get(x as u64);
+            log.push((x, tmp));
             self.table.set(x as u64, f);
             f = tmp;
 
@@ -478,7 +475,10 @@ where
         }
 
         // no space left => fail
-        self.table = table_backup; // rollback transaction
+        // restore state beforehand
+        for (pos, data) in log.iter().rev().cloned() {
+            self.table.set(pos as u64, data);
+        }
         Err(CuckooFilterFull)
     }
 
