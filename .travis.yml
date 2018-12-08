@@ -7,6 +7,7 @@ cache: cargo
 script:
   - rustc --version
   - cargo --version
+  - cargo fmt -- --check
   - cargo build --verbose --all
   - cargo test --verbose --all
   - cargo doc --verbose --all
