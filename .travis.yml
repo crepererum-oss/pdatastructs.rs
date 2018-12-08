@@ -4,6 +4,8 @@ rust:
   - beta
   - nightly
 cache: cargo
+install:
+  - rustup component add rustfmt
 script:
   - rustc --version
   - cargo --version
