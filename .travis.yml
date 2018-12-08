@@ -3,13 +3,15 @@ rust:
   - stable
   - beta
   - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
 cache: cargo
 install:
   - rustup component add rustfmt
 script:
-  - rustc --version
-  - cargo --version
-  - cargo fmt -- --check
+  - cargo fmt --all -- --check
   - cargo build --verbose --all
   - cargo test --verbose --all
   - cargo doc --verbose --all
