@@ -70,12 +70,15 @@ fn benchmarks_insert_many(c: &mut Criterion) {
         "bloomfilter",
         |b, n| run_insert_many(setup_bloomfilter, b, *n),
         parameters,
-    ).with_function("cuckoofilter", |b, n| {
+    )
+    .with_function("cuckoofilter", |b, n| {
         run_insert_many(setup_cuckoofilter, b, *n)
-    }).with_function("hashset", |b, n| run_insert_many(setup_hashset, b, *n))
+    })
+    .with_function("hashset", |b, n| run_insert_many(setup_hashset, b, *n))
     .with_function("quotientfilter", |b, n| {
         run_insert_many(setup_quotientfilter, b, *n)
-    }).sample_size(20);
+    })
+    .sample_size(20);
     c.bench("insert_many", benchmark);
 }
 

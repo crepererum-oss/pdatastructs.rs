@@ -7,8 +7,8 @@ use std::marker::PhantomData;
 use rand::Rng;
 use succinct::{IntVec, IntVecMut, IntVector};
 
-use filters::Filter;
-use helpers::all_zero_intvector;
+use crate::filters::Filter;
+use crate::helpers::all_zero_intvector;
 
 const MAX_NUM_KICKS: usize = 500; // mentioned in paper
 
@@ -522,7 +522,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::CuckooFilter;
-    use filters::Filter;
+    use crate::filters::Filter;
     use rand::{ChaChaRng, SeedableRng};
 
     #[test]

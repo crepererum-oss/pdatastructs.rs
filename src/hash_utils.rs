@@ -121,7 +121,8 @@ where
                 let mut hasher = buildhasher.build_hasher();
                 hasher.write_usize(i + 2); // skip 2 for h1 und h2
                 hasher.finish() % (m as u64)
-            }).collect()
+            })
+            .collect()
     }
 
     /// Helper to calculate h_0 and h_1.
