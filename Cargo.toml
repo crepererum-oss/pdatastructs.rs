@@ -20,12 +20,13 @@ edition = "2018"
 bytecount = "0.4"
 fixedbitset = "^0.1.9"
 num-traits = "^0.2.4"
-rand = "0.5"
+rand = "0.6"
 succinct = "^0.4.4"
 void = "1"
 
 [dev-dependencies]
 criterion = "0.2"
+rand_chacha = "0.1"
 
 [[bench]]
 name = "filters"
