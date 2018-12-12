@@ -1,15 +1,16 @@
 //! Implementation of `Filter` for certain non-probabilistic data structures. This can be helpful
 //! for debugging and performance comparisons.
 use std::collections::HashSet;
-use std::hash::Hash;
+use std::hash::{BuildHasher, Hash};
 
 use void::Void;
 
 use crate::filters::Filter;
 
-impl<T> Filter<T> for HashSet<T>
+impl<T, S> Filter<T> for HashSet<T, S>
 where
     T: Clone + Eq + Hash,
+    S: BuildHasher,
 {
     type InsertErr = Void;
 
