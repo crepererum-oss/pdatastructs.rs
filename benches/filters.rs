@@ -9,7 +9,8 @@ use pdatastructs::filters::bloomfilter::BloomFilter;
 use pdatastructs::filters::cuckoofilter::CuckooFilter;
 use pdatastructs::filters::quotientfilter::QuotientFilter;
 use pdatastructs::filters::Filter;
-use pdatastructs::rand::{ChaChaRng, SeedableRng};
+use pdatastructs::rand::SeedableRng;
+use rand_chacha::ChaChaRng;
 
 fn setup_bloomfilter() -> BloomFilter<u64> {
     let false_positive_rate = 0.02; // = 2%
