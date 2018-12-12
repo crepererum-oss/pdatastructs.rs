@@ -55,6 +55,21 @@ where
     })
 }
 
+fn run_query_single<F, S>(setup: S, b: &mut Bencher, n: u64)
+where
+    S: Fn() -> F,
+    F: Filter<u64>,
+{
+    let setup_and_fill = || {
+        let mut filter = setup();
+        for i in 0..n {
+            filter.insert(&i).unwrap();
+        }
+        filter
+    };
+    b.iter_with_setup(setup_and_fill, |filter| filter.query(&0))
+}
+
 fn benchmarks_setup(c: &mut Criterion) {
     let functions = vec![
         Fun::new("bloomfilter", |b, _| run_setup(setup_bloomfilter, b)),
@@ -83,5 +98,28 @@ fn benchmarks_insert_many(c: &mut Criterion) {
     c.bench("insert_many", benchmark);
 }
 
-criterion_group!(benches, benchmarks_setup, benchmarks_insert_many,);
+fn benchmarks_query_single(c: &mut Criterion) {
+    let parameters = vec![4_000, 8_000];
+    let benchmark = ParameterizedBenchmark::new(
+        "bloomfilter",
+        |b, n| run_query_single(setup_bloomfilter, b, *n),
+        parameters,
+    )
+    .with_function("cuckoofilter", |b, n| {
+        run_query_single(setup_cuckoofilter, b, *n)
+    })
+    .with_function("hashset", |b, n| run_query_single(setup_hashset, b, *n))
+    .with_function("quotientfilter", |b, n| {
+        run_query_single(setup_quotientfilter, b, *n)
+    })
+    .sample_size(20);
+    c.bench("query_single", benchmark);
+}
+
+criterion_group!(
+    benches,
+    benchmarks_setup,
+    benchmarks_insert_many,
+    benchmarks_query_single,
+);
 criterion_main!(benches);
