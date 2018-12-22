@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5 - Performance, Filter Trait, Rust 2018
+
+### Global
+- benchmarking system
+- improved hash performance
+- various tiny documentation improvements
+- misc performance improvements
+- use stdlib `BuildHasherDefault` instead of own version
+- make all containers typed and implement `AnyHash` for dynamically typed containers
+- enforce formatting in CI
+- Rust 2018
+
+### Dependencies
+- update bytecount to 0.4
+- update rand to 0.6
+
+### HyperLogLog
+- implement `relative_error`
+- enhanced bias correction
+- extend value range for `b`
+
+### Filters
+- unified trait-based filter interface
+- add QuotientFilter
+
+
 ## 0.4 - CuckooFilter, API Improvements, Docs
 
 - CountMinSketch: use `num-traits` as counters, `add_n` takes element by reference
