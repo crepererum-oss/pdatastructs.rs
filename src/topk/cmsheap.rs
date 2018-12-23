@@ -162,7 +162,6 @@ where
 
         // check if entry is in top K
         let size = self.obj2count.len();
-        let mut update_obj2count: Option<(usize, Rc<T>)> = None;
         match self.obj2count.entry(Rc::clone(&rc)) {
             Entry::Occupied(mut o) => {
                 // it is => increase exact counter
@@ -203,17 +202,11 @@ where
                             n: count,
                         });
 
-                        // delay obj2count changes, because it is currently borrowed
-                        update_obj2count = Some((count, min.obj));
+                        self.obj2count.insert(rc, count);
+                        self.obj2count.remove(&min.obj);
                     }
                 }
             }
-        }
-
-        // trick the borrow checker
-        if let Some((count, obj)) = update_obj2count {
-            self.obj2count.insert(rc, count);
-            self.obj2count.remove(&obj);
         }
     }
 
