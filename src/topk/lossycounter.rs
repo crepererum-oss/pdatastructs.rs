@@ -3,7 +3,7 @@
 use std::collections::hash_map::{Entry, HashMap};
 use std::hash::Hash;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct KnownEntry {
     f: usize,
     delta: usize,
@@ -154,7 +154,7 @@ struct KnownEntry {
 /// - ["Approximate Frequency Counts over Data Streams", Gurmeet S. Manku, Rajeev Motwani, 2002](https://www.vldb.org/conf/2002/S10P03.pdf)
 /// - [Wikipedia: Lossy Count Algorithm](https://en.wikipedia.org/wiki/Lossy_Count_Algorithm)
 /// - ["Top K Frequent Items Algorithm", Zhipeng Jiang, 2017](https://zpjiang.me/2017/11/13/top-k-elementes-system-design/)
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LossyCounter<T>
 where
     T: Clone + Eq + Hash,
@@ -333,5 +333,25 @@ mod tests {
         let mut data: Vec<u64> = counter.query(0.02).collect();
         data.sort();
         assert_eq!(data, vec![7, 8, 9]);
+    }
+
+    #[test]
+    fn clone() {
+        let mut counter1 = LossyCounter::<u64>::with_properties(0.2);
+        assert!(counter1.add(13));
+
+        let mut counter2 = counter1.clone();
+        assert!(counter2.add(42));
+
+        assert_eq!(counter1.n(), 1);
+        assert_eq!(counter2.n(), 2);
+
+        let mut data1: Vec<u64> = counter1.query(0.).collect();
+        data1.sort();
+        assert_eq!(data1, vec![13]);
+
+        let mut data2: Vec<u64> = counter2.query(0.).collect();
+        data2.sort();
+        assert_eq!(data2, vec![13, 42]);
     }
 }
