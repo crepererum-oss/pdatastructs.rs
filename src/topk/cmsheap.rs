@@ -1,4 +1,4 @@
-//! TopK implementation.
+//! CMSHeap implementation.
 use crate::countminsketch::CountMinSketch;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
@@ -61,18 +61,18 @@ where
     }
 }
 
-/// A TopK is a data structure keeps the `k` most frequent data points of a stream.
+/// A CMSHeap is a data structure keeps the `k` most frequent data points of a stream.
 ///
 /// # Examples
 /// ```
 /// use pdatastructs::countminsketch::CountMinSketch;
-/// use pdatastructs::topk::TopK;
+/// use pdatastructs::topk::cmsheap::CMSHeap;
 ///
 /// // set up filter
 /// let epsilon = 0.1;  // error threshold
 /// let delta = 0.2;  // epsilon is hit in (1 - 0.2) * 100% = 80%
 /// let mut cms = CountMinSketch::with_point_query_properties(epsilon, delta);
-/// let mut tk = TopK::new(2, cms);
+/// let mut tk = CMSHeap::new(2, cms);
 ///
 /// // add some data
 /// for i in 0..1000 {
@@ -115,7 +115,7 @@ where
 /// # References
 /// - ["Top K Frequent Items Algorithm", Zhipeng Jiang, 2017](https://zpjiang.me/2017/11/13/top-k-elementes-system-design/)
 #[derive(Clone)]
-pub struct TopK<T>
+pub struct CMSHeap<T>
 where
     T: Clone + Eq + Hash + Ord,
 {
@@ -125,7 +125,7 @@ where
     k: usize,
 }
 
-impl<T> TopK<T>
+impl<T> CMSHeap<T>
 where
     T: Clone + Eq + Hash + Ord,
 {
@@ -158,11 +158,10 @@ where
         let rc = Rc::new(obj);
 
         // always increase CountMinSketch counts
-        self.cms.add(&rc);
+        let count = self.cms.add(&rc);
 
         // check if entry is in top K
         let size = self.obj2count.len();
-        let mut update_obj2count: Option<(usize, Rc<T>)> = None;
         match self.obj2count.entry(Rc::clone(&rc)) {
             Entry::Occupied(mut o) => {
                 // it is => increase exact counter
@@ -182,6 +181,7 @@ where
                 // it's not => check capicity
                 if size < self.k {
                     // space left => add to top k
+                    debug_assert!(count == 1);
                     v.insert(1);
                     self.tree.insert(TreeEntry {
                         obj: Rc::clone(&rc),
@@ -190,7 +190,6 @@ where
                 } else {
                     // not enough space => check if it would be a top k element
 
-                    let count = self.cms.query_point(&rc);
                     // count at this point already contains the +1 from the current insertions
                     // because we've updated the CountMinSketch before the query
 
@@ -203,17 +202,11 @@ where
                             n: count,
                         });
 
-                        // delay obj2count changes, because it is currently borrowed
-                        update_obj2count = Some((count, min.obj));
+                        self.obj2count.insert(rc, count);
+                        self.obj2count.remove(&min.obj);
                     }
                 }
             }
-        }
-
-        // trick the borrow checker
-        if let Some((count, obj)) = update_obj2count {
-            self.obj2count.insert(rc, count);
-            self.obj2count.remove(&obj);
         }
     }
 
@@ -238,16 +231,16 @@ where
     }
 }
 
-impl<T> fmt::Debug for TopK<T>
+impl<T> fmt::Debug for CMSHeap<T>
 where
     T: Clone + Eq + Hash + Ord,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "TopK {{ k: {} }}", self.k)
+        write!(f, "CMSHeap {{ k: {} }}", self.k)
     }
 }
 
-impl<T> Extend<T> for TopK<T>
+impl<T> Extend<T> for CMSHeap<T>
 where
     T: Clone + Eq + Hash + Ord,
 {
@@ -260,20 +253,20 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::TopK;
+    use super::CMSHeap;
     use crate::countminsketch::CountMinSketch;
 
     #[test]
     #[should_panic(expected = "k must be greater than 0")]
     fn new_panics_k0() {
         let cms = CountMinSketch::with_params(10, 20);
-        TopK::<usize>::new(0, cms);
+        CMSHeap::<usize>::new(0, cms);
     }
 
     #[test]
     fn getter() {
         let cms = CountMinSketch::with_params(10, 20);
-        let tk: TopK<usize> = TopK::new(2, cms);
+        let tk: CMSHeap<usize> = CMSHeap::new(2, cms);
 
         assert_eq!(tk.k(), 2);
     }
@@ -281,7 +274,7 @@ mod tests {
     #[test]
     fn add_1() {
         let cms = CountMinSketch::with_params(10, 20);
-        let mut tk = TopK::new(2, cms);
+        let mut tk = CMSHeap::new(2, cms);
 
         tk.add(1);
         assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![1]);
@@ -290,7 +283,7 @@ mod tests {
     #[test]
     fn add_2_same() {
         let cms = CountMinSketch::with_params(10, 20);
-        let mut tk = TopK::new(2, cms);
+        let mut tk = CMSHeap::new(2, cms);
 
         tk.add(1);
         tk.add(1);
@@ -300,7 +293,7 @@ mod tests {
     #[test]
     fn add_2_different() {
         let cms = CountMinSketch::with_params(10, 20);
-        let mut tk = TopK::new(2, cms);
+        let mut tk = CMSHeap::new(2, cms);
 
         tk.add(1);
         tk.add(2);
@@ -310,7 +303,7 @@ mod tests {
     #[test]
     fn add_n() {
         let cms = CountMinSketch::with_params(10, 20);
-        let mut tk = TopK::new(2, cms);
+        let mut tk = CMSHeap::new(2, cms);
 
         for i in 0..5 {
             tk.add(i);
@@ -330,7 +323,7 @@ mod tests {
     #[test]
     fn is_empty() {
         let cms = CountMinSketch::with_params(10, 20);
-        let mut tk = TopK::new(2, cms);
+        let mut tk = CMSHeap::new(2, cms);
         assert_eq!(tk.is_empty(), true);
 
         tk.add(0);
@@ -340,7 +333,7 @@ mod tests {
     #[test]
     fn clear() {
         let cms = CountMinSketch::with_params(10, 20);
-        let mut tk = TopK::new(2, cms);
+        let mut tk = CMSHeap::new(2, cms);
         tk.add(0);
 
         tk.clear();
@@ -353,7 +346,7 @@ mod tests {
     #[test]
     fn clone() {
         let cms = CountMinSketch::with_params(10, 20);
-        let mut tk1 = TopK::new(2, cms);
+        let mut tk1 = CMSHeap::new(2, cms);
         tk1.add(0);
 
         let mut tk2 = tk1.clone();
@@ -366,14 +359,14 @@ mod tests {
     #[test]
     fn debug() {
         let cms = CountMinSketch::with_params(10, 20);
-        let tk: TopK<usize> = TopK::new(2, cms);
-        assert_eq!(format!("{:?}", tk), "TopK { k: 2 }");
+        let tk: CMSHeap<usize> = CMSHeap::new(2, cms);
+        assert_eq!(format!("{:?}", tk), "CMSHeap { k: 2 }");
     }
 
     #[test]
     fn extend() {
         let cms = CountMinSketch::with_params(10, 10);
-        let mut tk = TopK::new(2, cms);
+        let mut tk = CMSHeap::new(2, cms);
 
         tk.extend(vec![0, 1]);
         assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![0, 1]);
