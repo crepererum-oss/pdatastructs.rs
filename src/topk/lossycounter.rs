@@ -9,7 +9,146 @@ struct KnownEntry {
     delta: usize,
 }
 
-/// TODO
+/// A LossyCounter is a data structure that memorizes the most frequent elements in data stream.
+///
+/// # Examples
+/// ```
+/// use pdatastructs::topk::lossycounter::LossyCounter;
+///
+/// // set up filter
+/// let epsilon = 0.01;  // error threshold
+/// let mut lc = LossyCounter::with_properties(epsilon);
+///
+/// // add some data
+/// for i in 0..1000 {
+///     let x = i % 10;
+///     let y = if x < 4 {
+///         0
+///     } else if x < 7 {
+///         1
+///     } else {
+///         x
+///     };
+///     lc.add(y);
+/// }
+///
+/// // later
+/// let threshold = 0.2;
+/// let mut elements: Vec<u64> = lc.query(threshold).collect();
+/// elements.sort();  // normalize order for testing purposes
+/// assert_eq!(elements, vec![0, 1]);
+/// ```
+///
+/// # Applications
+/// - getting a fixed number of most common example of a large data set
+/// - detect hotspots / very common events
+///
+/// # How It Works
+/// The LossyCounter is initialized with an relative error bound `epsilon`. Depending on that, a
+/// window size will be set. A window is the number of elements after which the counter will be
+/// pruned.
+///
+/// ## Insertion
+/// If the element is unknown (i.e. it was never seen before or was already pruned), it will be
+/// stored with a frequency of 1. Also, the current window index will be stored alongside.
+///
+/// ```text
+/// window size    = 4
+///
+///
+/// insert(a):
+///              n = 1
+/// current window = 1
+///
+/// +---------+-------+-----------+
+/// | element | delta | frequency |
+/// +=========+=======+===========+
+/// |       a |     0 |         1 |  <-- inserted
+/// +---------+-------+-----------+
+///
+///
+/// insert(b):
+///              n = 2
+/// current window = 1
+///
+/// +---------+-------+-----------+
+/// | element | delta | frequency |
+/// +=========+=======+===========+
+/// |       a |     0 |         1 |
+/// |       b |     0 |         1 |  <-- inserted
+/// +---------+-------+-----------+
+/// ```
+///
+/// If the element is know, the counter will be increased by 1.
+///
+/// ```text
+/// window size    = 4
+///
+///
+/// insert(a):
+///              n = 3
+/// current window = 1
+///
+/// +---------+-------+-----------+
+/// | element | delta | frequency |
+/// +=========+=======+===========+
+/// |       a |     0 |         2 |  <-- incremented
+/// |       b |     0 |         1 |
+/// +---------+-------+-----------+
+///
+///
+/// insert(a):
+///              n = 4
+/// current window = 1
+///
+/// +---------+-------+-----------+
+/// | element | delta | frequency |
+/// +=========+=======+===========+
+/// |       a |     0 |         3 |  <-- incremented
+/// |       b |     0 |         1 |
+/// +---------+-------+-----------+
+/// ```
+///
+/// If the window ends, pruning takes place. Elements will only be kept if their recorded frequency
+/// plus the window index stored with them (i.e. the index they where recorded first) is at least
+/// as large as the current window index. So elements that where not seen for a while will slowly
+/// be kicked out of the counter, hence the name "Lossy Counter". In other words: an element will
+/// only stay in the counter if it was seen more often than the number of windows since it was
+/// inserted (i.e. number of windows plus 1).
+///
+/// ```text
+/// window size    = 4
+///
+///
+/// prune:
+///              n = 4
+/// current window = 1
+///
+/// +---------+-------+-----------+
+/// | element | delta | frequency |
+/// +=========+=======+===========+
+/// |       a |     0 |         2 |
+/// |       b |     0 |         1 |  <-- remove
+/// +---------+-------+-----------+
+///
+/// +---------+-------+-----------+
+/// | element | delta | frequency |
+/// +=========+=======+===========+
+/// |       a |     0 |         2 |
+/// +---------+-------+-----------+
+/// ```
+///
+/// ## Query
+/// Given a relative threshold, all elements will be returned for which the following holds:
+///
+/// ```text
+/// f >= (threshold - epsilon) * n
+/// ```
+///
+/// # See Also
+/// - `std::collections::HashSet`: has a false positive rate of 0%, but also needs to store all
+///   elements
+/// - `pdatastructs::topk::cmsheap::CMSHeap`: uses a different approach to solve the same problem
 ///
 /// # References
 /// - ["Approximate Frequency Counts over Data Streams", Gurmeet S. Manku, Rajeev Motwani, 2002](https://www.vldb.org/conf/2002/S10P03.pdf)
@@ -69,7 +208,8 @@ where
         // pre-inc, since "N denotes the current length of the stream"
         self.n += 1;
 
-        let b_current = self.n / self.width + 1;
+        let at_window_end = self.n % self.width == 0;
+        let b_current = self.n / self.width + if at_window_end { 0 } else { 1 };
 
         // add new data
         let was_new = match self.known.entry(t) {
@@ -88,7 +228,7 @@ where
         };
 
         // pruning
-        if self.n % self.width == 0 {
+        if at_window_end {
             self.known = self
                 .known
                 .drain()
@@ -103,6 +243,7 @@ where
     ///
     /// ```text
     /// f >= (threshold - epsilon) * n
+    /// f > epsilon * n
     /// ```
     ///
     /// The order of the elements is undefined.
