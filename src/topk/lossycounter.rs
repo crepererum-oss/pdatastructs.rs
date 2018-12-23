@@ -89,13 +89,11 @@ where
 
         // pruning
         if self.n % self.width == 0 {
-            // FIXME: nll
-            let tmp: HashMap<T, KnownEntry> = self
+            self.known = self
                 .known
                 .drain()
                 .filter(|(_k, v)| v.f + v.delta > b_current)
                 .collect();
-            self.known = tmp;
         }
 
         was_new
