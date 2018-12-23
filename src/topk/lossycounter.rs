@@ -255,6 +255,12 @@ where
             .map(|(k, _v)| k)
             .cloned()
     }
+
+    /// Clear state of the counter.
+    pub fn clear(&mut self) {
+        self.known = HashMap::new();
+        self.n = 0;
+    }
 }
 
 #[cfg(test)]
@@ -353,5 +359,22 @@ mod tests {
         let mut data2: Vec<u64> = counter2.query(0.).collect();
         data2.sort();
         assert_eq!(data2, vec![13, 42]);
+    }
+
+    #[test]
+    fn clear() {
+        let mut counter = LossyCounter::<u64>::with_properties(0.2);
+        assert!(counter.add(13));
+        assert_eq!(counter.n(), 1);
+
+        counter.clear();
+        assert_eq!(counter.n(), 0);
+        let data: Vec<u64> = counter.query(0.).collect();
+        assert!(data.is_empty());
+
+        assert!(counter.add(13));
+        assert_eq!(counter.n(), 1);
+        let data: Vec<u64> = counter.query(0.).collect();
+        assert_eq!(data, vec![13]);
     }
 }
