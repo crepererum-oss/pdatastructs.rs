@@ -17,7 +17,7 @@ struct KnownEntry {
 ///
 /// // set up filter
 /// let epsilon = 0.01;  // error threshold
-/// let mut lc = LossyCounter::with_properties(epsilon);
+/// let mut lc = LossyCounter::with_epsilon(epsilon);
 ///
 /// // add some data
 /// for i in 0..1000 {
@@ -176,7 +176,7 @@ where
     /// ```
     ///
     /// where `f` is the true frequency and `n` the number of data points seen so far.
-    pub fn with_properties(epsilon: f64) -> Self {
+    pub fn with_epsilon(epsilon: f64) -> Self {
         assert!(
             (epsilon > 0.) & (epsilon < 1.),
             "epsilon ({}) must be greater than 0 and smaller than 1",
@@ -191,9 +191,26 @@ where
         }
     }
 
+    /// Creates new lossy counter width given window width.
+    pub fn with_width(width: usize) -> Self {
+        assert!(width > 0, "width must be greater than 0");
+
+        Self {
+            epsilon: (1. / (width as f64)),
+            known: HashMap::new(),
+            n: 0,
+            width,
+        }
+    }
+
     /// Epsilon error.
     pub fn epsilon(&self) -> f64 {
         self.epsilon
+    }
+
+    /// Window width.
+    pub fn width(&self) -> usize {
+        self.width
     }
 
     /// Number of data points seen so far.
@@ -268,8 +285,17 @@ mod tests {
     use super::LossyCounter;
 
     #[test]
-    fn new() {
-        let counter = LossyCounter::<u64>::with_properties(0.5);
+    fn new_with_epsilon() {
+        let counter = LossyCounter::<u64>::with_epsilon(0.5);
+        assert_eq!(counter.epsilon(), 0.5);
+        assert_eq!(counter.width(), 2);
+        assert_eq!(counter.n(), 0);
+    }
+
+    #[test]
+    fn new_with_width() {
+        let counter = LossyCounter::<u64>::with_width(2);
+        assert_eq!(counter.width(), 2);
         assert_eq!(counter.epsilon(), 0.5);
         assert_eq!(counter.n(), 0);
     }
@@ -277,25 +303,31 @@ mod tests {
     #[test]
     #[should_panic(expected = "epsilon (0) must be greater than 0 and smaller than 1")]
     fn new_panics_epsilon_0() {
-        LossyCounter::<u64>::with_properties(0.);
+        LossyCounter::<u64>::with_epsilon(0.);
     }
 
     #[test]
     #[should_panic(expected = "epsilon (1) must be greater than 0 and smaller than 1")]
     fn new_panics_epsilon_1() {
-        LossyCounter::<u64>::with_properties(1.);
+        LossyCounter::<u64>::with_epsilon(1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "width must be greater than 0")]
+    fn new_panics_width_0() {
+        LossyCounter::<u64>::with_width(0);
     }
 
     #[test]
     fn add() {
-        let mut counter = LossyCounter::<u64>::with_properties(0.5);
+        let mut counter = LossyCounter::<u64>::with_epsilon(0.5);
         assert!(counter.add(13));
         assert_eq!(counter.n(), 1);
     }
 
     #[test]
     fn double_add() {
-        let mut counter = LossyCounter::<u64>::with_properties(0.5);
+        let mut counter = LossyCounter::<u64>::with_epsilon(0.5);
         assert!(counter.add(13));
         assert!(!counter.add(13));
         assert_eq!(counter.n(), 2);
@@ -303,7 +335,7 @@ mod tests {
 
     #[test]
     fn query_all() {
-        let mut counter = LossyCounter::<u64>::with_properties(0.2);
+        let mut counter = LossyCounter::<u64>::with_epsilon(0.2);
         assert!(counter.add(13));
         assert!(counter.add(42));
 
@@ -314,7 +346,7 @@ mod tests {
 
     #[test]
     fn query_part() {
-        let mut counter = LossyCounter::<u64>::with_properties(0.001);
+        let mut counter = LossyCounter::<u64>::with_epsilon(0.001);
         assert!(counter.add(13));
         assert!(!counter.add(13));
         assert!(counter.add(42));
@@ -326,7 +358,7 @@ mod tests {
 
     #[test]
     fn query_large() {
-        let mut counter = LossyCounter::<u64>::with_properties(0.01);
+        let mut counter = LossyCounter::<u64>::with_epsilon(0.01);
         for i in 0..1000 {
             let j = i % 10;
             if j <= 6 {
@@ -343,7 +375,7 @@ mod tests {
 
     #[test]
     fn clone() {
-        let mut counter1 = LossyCounter::<u64>::with_properties(0.2);
+        let mut counter1 = LossyCounter::<u64>::with_epsilon(0.2);
         assert!(counter1.add(13));
 
         let mut counter2 = counter1.clone();
@@ -363,7 +395,7 @@ mod tests {
 
     #[test]
     fn clear() {
-        let mut counter = LossyCounter::<u64>::with_properties(0.2);
+        let mut counter = LossyCounter::<u64>::with_epsilon(0.2);
         assert!(counter.add(13));
         assert_eq!(counter.n(), 1);
 
@@ -376,5 +408,20 @@ mod tests {
         assert_eq!(counter.n(), 1);
         let data: Vec<u64> = counter.query(0.).collect();
         assert_eq!(data, vec![13]);
+    }
+
+    #[test]
+    fn pruning() {
+        let mut counter = LossyCounter::<u64>::with_epsilon(0.5);
+
+        assert!(counter.add(13));
+        assert_eq!(counter.n(), 1);
+        let data: Vec<u64> = counter.query(0.).collect();
+        assert_eq!(data, vec![13]);
+
+        assert!(counter.add(42));
+        assert_eq!(counter.n(), 2);
+        let data: Vec<u64> = counter.query(0.).collect();
+        assert!(data.is_empty());
     }
 }
