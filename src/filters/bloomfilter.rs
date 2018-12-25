@@ -43,12 +43,93 @@ use crate::hash_utils::HashIterBuilder;
 /// `h_i(x), for i in 0..k`, every one mapping an input value `x` to an integer `>= 0` and `< m`.
 /// Initially, all bits are set to `False`.
 ///
+/// ```text
+/// m = 8
+/// k = 2
+///
+/// +---------++---+---+---+---+---+---+---+---+
+/// | address || 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+/// |    data ||   |   |   |   |   |   |   |   |
+/// +---------++---+---+---+---+---+---+---+---+
+/// ```
+///
+/// ## Insertion
 /// During insertion of value `x`, the `k` bits addressed by `h_i(x), for i in 0..k` are set to
 /// `True`.
 ///
+/// ```text
+/// insert(a):
+///
+///   h0(a) = 1
+///   h1(a) = 6
+///
+/// +---------++---+---+---+---+---+---+---+---+
+/// | address || 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+/// |    data ||   | X |   |   |   |   | X |   |
+/// +---------++---+---+---+---+---+---+---+---+
+///
+///
+/// insert(b):
+///
+///   h0(b) = 6
+///   h1(b) = 4
+///
+/// +---------++---+---+---+---+---+---+---+---+
+/// | address || 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+/// |    data ||   | X |   |   | X |   | X |   |
+/// +---------++---+---+---+---+---+---+---+---+
+/// ```
+///
+/// ## Query
 /// During lookup, it is checked if all these bits are set. If so, the value might be in the
-/// filter. If only a single bit is not set, it is clear that the value was never added to the
 /// filter.
+///
+/// ```text
+/// query(a):
+///
+///   h0(a) = 1
+///   h1(a) = 6
+///
+/// +---------++---+---+---+---+---+---+---+---+
+/// | address || 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+/// |    data ||   |(X)|   |   | X |   |(X)|   |
+/// +---------++---+---+---+---+---+---+---+---+
+///
+/// => present
+/// ```
+///
+/// If only a single bit is not set, it is clear that the value was never added to the
+/// filter.
+///
+/// ```text
+/// query(c):
+///
+///   h0(a) = 2
+///   h1(a) = 6
+///
+/// +---------++---+---+---+---+---+---+---+---+
+/// | address || 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+/// |    data ||   | X |( )|   | X |   |(X)|   |
+/// +---------++---+---+---+---+---+---+---+---+
+///
+/// => absent
+/// ```
+///
+/// What could happen of course is that the filter results in false positives.
+///
+/// ```text
+/// query(d):
+///
+///   h0(a) = 4
+///   h1(a) = 1
+///
+/// +---------++---+---+---+---+---+---+---+---+
+/// | address || 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+/// |    data ||   |(X)|   |   |(X)|   | X |   |
+/// +---------++---+---+---+---+---+---+---+---+
+///
+/// => present
+/// ```
 ///
 /// # See Also
 /// - `std::collections::HashSet`: has a false positive rate of 0%, but also needs to store all
