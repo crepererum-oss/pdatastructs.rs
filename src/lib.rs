@@ -17,4 +17,5 @@ mod helpers;
 pub mod hyperloglog;
 mod hyperloglog_data;
 pub mod reservoirsampling;
+pub mod tdigest;
 pub mod topk;
