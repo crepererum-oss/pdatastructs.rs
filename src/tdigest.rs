@@ -116,33 +116,30 @@ impl TDigestInner {
 
         // left tail?
         let c_first = &self.centroids[0];
-        if limit < c_first.count {
+        if limit <= c_first.count * 0.5 {
             // TODO: interpolate w/ min
             return c_first.mean();
         }
 
         let mut cum = 0.;
-        let mut idx = self.centroids.len() - 1;
         for (i, c) in self.centroids.iter().enumerate() {
-            cum += c.count;
-            if cum >= limit {
-                idx = i;
-                break;
+            if cum + c.count * 0.5 >= limit {
+                // default case
+                debug_assert!(i > 0);
+                let c_last = &self.centroids[i - 1];
+                cum -= 0.5 * c_last.count;
+                let delta = 0.5 * (c_last.count + c.count);
+                let t = (limit - cum) / delta;
+                debug_assert!((t >= 0.) && (t <= 1.));
+                return t * c.mean() + (1. - t) * c_last.mean();
             }
+            cum += c.count;
         }
 
-        // right tail?
-        if idx == self.centroids.len() - 1 {
-            let c_last = &self.centroids[self.centroids.len() - 1];
-            // TODO: interpolate w/ max
-            return c_last.mean();
-        }
-
-        // default case
-        let c_a = &self.centroids[idx];
-        let c_b = &self.centroids[idx + 1];
-        let t = (limit - cum) / c_b.count;
-        t * c_b.mean() + (1. - t) * c_a.mean()
+        // right tail
+        let c_last = &self.centroids[self.centroids.len() - 1];
+        // TODO: interpolate w/ max
+        return c_last.mean();
     }
 }
 
@@ -316,11 +313,50 @@ mod tests {
         assert!(digest.n_centroids() < 100);
 
         // test some known quantiles
-        assert!((-1.2816 - digest.quantile(0.10)).abs() < 0.05);
-        assert!((-0.6745 - digest.quantile(0.25)).abs() < 0.05);
-        assert!((0.0000 - digest.quantile(0.5)).abs() < 0.05);
-        assert!((0.6745 - digest.quantile(0.75)).abs() < 0.05);
-        assert!((1.2816 - digest.quantile(0.90)).abs() < 0.05);
+        assert!((-1.2816 - digest.quantile(0.10)).abs() < 0.01);
+        assert!((-0.6745 - digest.quantile(0.25)).abs() < 0.01);
+        assert!((0.0000 - digest.quantile(0.5)).abs() < 0.01);
+        assert!((0.6745 - digest.quantile(0.75)).abs() < 0.01);
+        assert!((1.2816 - digest.quantile(0.90)).abs() < 0.01);
+    }
+
+    #[test]
+    fn with_single() {
+        let compression_factor = 100.;
+        let max_backlog_size = 10;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+
+        digest.insert(13.37);
+
+        // compression works
+        assert_eq!(digest.n_centroids(), 1);
+
+        // test some known quantiles
+        assert_eq!(digest.quantile(0.), 13.37);
+        assert_eq!(digest.quantile(0.5), 13.37);
+        assert_eq!(digest.quantile(1.), 13.37);
+    }
+
+    #[test]
+    fn with_two() {
+        let compression_factor = 100.;
+        let max_backlog_size = 10;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+
+        digest.insert(10.);
+        digest.insert(20.);
+
+        // compression works
+        assert_eq!(digest.n_centroids(), 2);
+
+        // test some known quantiles
+        assert_eq!(digest.quantile(0.), 10.); // min
+        assert_eq!(digest.quantile(0.25), 10.); // first centroid
+        assert_eq!(digest.quantile(0.375), 12.5);
+        assert_eq!(digest.quantile(0.5), 15.); // center
+        assert_eq!(digest.quantile(0.625), 17.5);
+        assert_eq!(digest.quantile(0.75), 20.); // second centroid
+        assert_eq!(digest.quantile(1.), 20.); // max
     }
 
     #[test]
