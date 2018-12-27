@@ -157,7 +157,11 @@ pub struct TDigest {
 impl TDigest {
     /// TODO
     pub fn new(compression_factor: f64, max_backlog_size: usize) -> Self {
-        // TODO assert compression_factor
+        assert!(
+            (compression_factor > 1.) && compression_factor.is_finite(),
+            "compression_factor ({}) must be greater than 1 and finite",
+            compression_factor
+        );
 
         Self {
             inner: RefCell::new(TDigestInner::new(compression_factor, max_backlog_size)),
@@ -194,16 +198,24 @@ impl TDigest {
 
     /// TODO
     pub fn insert_weighted(&mut self, x: f64, w: f64) {
-        // TODO: assert w and early exit for 0
-        // TODO: check x for non-NaN
-        // TODO: check w for non-NaN
+        assert!(x.is_finite(), "x ({}) must be finite", x);
+        assert!(
+            (w >= 0.) && w.is_finite(),
+            "w ({}) must be greater or equal than zero and finite",
+            w
+        );
+
+        // early return for zero-weight
+        if w == 0. {
+            return;
+        }
 
         self.inner.borrow_mut().insert_weighted(x, w)
     }
 
     /// TODO
     pub fn quantile(&self, q: f64) -> f64 {
-        // TODO: check q
+        assert!((q >= 0.) && (q <= 1.), "q ({}) must be in [0, 1]", q);
 
         // apply compression if required
         self.inner.borrow_mut().compress();
@@ -219,6 +231,7 @@ mod tests {
     use rand::distributions::StandardNormal;
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaChaRng;
+    use std::f64;
 
     #[test]
     fn k_test1() {
@@ -270,6 +283,22 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "compression_factor (1) must be greater than 1 and finite")]
+    fn new_panics_compression_factor_a() {
+        let compression_factor = 1.;
+        let max_backlog_size = 13;
+        TDigest::new(compression_factor, max_backlog_size);
+    }
+
+    #[test]
+    #[should_panic(expected = "compression_factor (inf) must be greater than 1 and finite")]
+    fn new_panics_compression_factor_b() {
+        let compression_factor = f64::INFINITY;
+        let max_backlog_size = 13;
+        TDigest::new(compression_factor, max_backlog_size);
+    }
+
+    #[test]
     fn with_normal_distribution() {
         let compression_factor = 100.;
         let max_backlog_size = 10;
@@ -292,5 +321,101 @@ mod tests {
         assert!((0.0000 - digest.quantile(0.5)).abs() < 0.05);
         assert!((0.6745 - digest.quantile(0.75)).abs() < 0.05);
         assert!((1.2816 - digest.quantile(0.90)).abs() < 0.05);
+    }
+
+    #[test]
+    fn zero_weight() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+
+        digest.insert_weighted(13.37, 0.);
+
+        assert_eq!(digest.compression_factor(), 2.);
+        assert_eq!(digest.max_backlog_size(), 13);
+        assert_eq!(digest.n_centroids(), 0);
+        assert!(digest.is_empty());
+        assert!(digest.quantile(0.5).is_nan());
+    }
+
+    #[test]
+    #[should_panic(expected = "q (-1) must be in [0, 1]")]
+    fn invalid_q_a() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.quantile(-1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "q (2) must be in [0, 1]")]
+    fn invalid_q_b() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.quantile(2.);
+    }
+
+    #[test]
+    #[should_panic(expected = "q (NaN) must be in [0, 1]")]
+    fn invalid_q_c() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.quantile(f64::NAN);
+    }
+
+    #[test]
+    #[should_panic(expected = "q (inf) must be in [0, 1]")]
+    fn invalid_q_d() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.quantile(f64::INFINITY);
+    }
+
+    #[test]
+    #[should_panic(expected = "w (-1) must be greater or equal than zero and finite")]
+    fn invalid_w_a() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.insert_weighted(13.37, -1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "w (inf) must be greater or equal than zero and finite")]
+    fn invalid_w_b() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.insert_weighted(13.37, f64::INFINITY);
+    }
+
+    #[test]
+    #[should_panic(expected = "x (-inf) must be finite")]
+    fn invalid_x_a() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.insert(f64::NEG_INFINITY);
+    }
+
+    #[test]
+    #[should_panic(expected = "x (inf) must be finite")]
+    fn invalid_x_b() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.insert(f64::INFINITY);
+    }
+
+    #[test]
+    #[should_panic(expected = "x (NaN) must be finite")]
+    fn invalid_x_c() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        digest.insert(f64::NAN);
     }
 }
