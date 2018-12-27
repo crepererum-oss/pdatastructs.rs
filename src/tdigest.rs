@@ -29,7 +29,7 @@ fn k1_inv(k: f64, delta: f64) -> f64 {
     ((k * 2. * f64::consts::PI / delta).sin() + 1.) / 2.
 }
 
-/// Inner data structure for tdigest to enable inner mutablity.
+/// Inner data structure for tdigest to enable interior mutability.
 #[derive(Debug)]
 struct TDigestInner {
     centroids: Vec<Centroid>,
