@@ -141,6 +141,14 @@ impl TDigestInner {
         // TODO: interpolate w/ max
         return c_last.mean();
     }
+
+    fn count(&self) -> f64 {
+        self.centroids.iter().map(|c| c.count).sum()
+    }
+
+    fn sum(&self) -> f64 {
+        self.centroids.iter().map(|c| c.sum).sum()
+    }
 }
 
 /// TODO
@@ -220,6 +228,24 @@ impl TDigest {
         // get quantile on immutable state
         self.inner.borrow().quantile(q)
     }
+
+    /// TODO
+    pub fn count(&self) -> f64 {
+        // apply compression if required
+        self.inner.borrow_mut().compress();
+
+        // get quantile on immutable state
+        self.inner.borrow().count()
+    }
+
+    /// TODO
+    pub fn sum(&self) -> f64 {
+        // apply compression if required
+        self.inner.borrow_mut().compress();
+
+        // get quantile on immutable state
+        self.inner.borrow().sum()
+    }
 }
 
 #[cfg(test)]
@@ -277,6 +303,8 @@ mod tests {
         assert_eq!(digest.n_centroids(), 0);
         assert!(digest.is_empty());
         assert!(digest.quantile(0.5).is_nan());
+        assert_eq!(digest.count(), 0.);
+        assert_eq!(digest.sum(), 0.);
     }
 
     #[test]
@@ -304,10 +332,16 @@ mod tests {
         let mut rng = ChaChaRng::from_seed([0; 32]);
 
         let n = 100_000;
+        let mut s = 0.;
         for _ in 0..n {
             let x = rng.sample(StandardNormal);
             digest.insert(x);
+            s += x;
         }
+
+        // generic tests
+        assert_eq!(digest.count(), n as f64);
+        assert!((s - digest.sum()).abs() < 0.0001);
 
         // compression works
         assert!(digest.n_centroids() < 100);
@@ -328,6 +362,10 @@ mod tests {
 
         digest.insert(13.37);
 
+        // generic tests
+        assert_eq!(digest.count(), 1.);
+        assert_eq!(digest.sum(), 13.37);
+
         // compression works
         assert_eq!(digest.n_centroids(), 1);
 
@@ -345,6 +383,10 @@ mod tests {
 
         digest.insert(10.);
         digest.insert(20.);
+
+        // generic tests
+        assert_eq!(digest.count(), 2.);
+        assert_eq!(digest.sum(), 30.);
 
         // compression works
         assert_eq!(digest.n_centroids(), 2);
@@ -372,6 +414,8 @@ mod tests {
         assert_eq!(digest.n_centroids(), 0);
         assert!(digest.is_empty());
         assert!(digest.quantile(0.5).is_nan());
+        assert_eq!(digest.count(), 0.);
+        assert_eq!(digest.sum(), 0.);
     }
 
     #[test]
