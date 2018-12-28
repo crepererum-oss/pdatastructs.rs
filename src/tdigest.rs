@@ -56,11 +56,11 @@ impl TDigestInner {
         self.backlog.push(Centroid { count: w, sum: x });
 
         if self.backlog.len() > self.max_backlog_size {
-            self.compress();
+            self.merge();
         }
     }
 
-    fn compress(&mut self) {
+    fn merge(&mut self) {
         // early return in case nothing to be done
         if self.backlog.is_empty() {
             return;
@@ -191,7 +191,7 @@ impl TDigest {
     /// Get number of centroids tracked by the digest.
     pub fn n_centroids(&self) -> usize {
         // first apply compression
-        self.inner.borrow_mut().compress();
+        self.inner.borrow_mut().merge();
 
         self.inner.borrow().centroids.len()
     }
@@ -223,7 +223,7 @@ impl TDigest {
         assert!((q >= 0.) && (q <= 1.), "q ({}) must be in [0, 1]", q);
 
         // apply compression if required
-        self.inner.borrow_mut().compress();
+        self.inner.borrow_mut().merge();
 
         // get quantile on immutable state
         self.inner.borrow().quantile(q)
@@ -232,7 +232,7 @@ impl TDigest {
     /// TODO
     pub fn count(&self) -> f64 {
         // apply compression if required
-        self.inner.borrow_mut().compress();
+        self.inner.borrow_mut().merge();
 
         // get quantile on immutable state
         self.inner.borrow().count()
@@ -241,7 +241,7 @@ impl TDigest {
     /// TODO
     pub fn sum(&self) -> f64 {
         // apply compression if required
-        self.inner.borrow_mut().compress();
+        self.inner.borrow_mut().merge();
 
         // get quantile on immutable state
         self.inner.borrow().sum()
