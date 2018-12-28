@@ -246,6 +246,15 @@ impl TDigest {
         // get quantile on immutable state
         self.inner.borrow().sum()
     }
+
+    /// TODO
+    pub fn mean(&self) -> f64 {
+        // apply compression if required
+        self.inner.borrow_mut().merge();
+
+        let inner = self.inner.borrow();
+        inner.sum() / inner.count()
+    }
 }
 
 #[cfg(test)]
@@ -305,6 +314,7 @@ mod tests {
         assert!(digest.quantile(0.5).is_nan());
         assert_eq!(digest.count(), 0.);
         assert_eq!(digest.sum(), 0.);
+        assert!(digest.mean().is_nan());
     }
 
     #[test]
@@ -342,6 +352,7 @@ mod tests {
         // generic tests
         assert_eq!(digest.count(), n as f64);
         assert!((s - digest.sum()).abs() < 0.0001);
+        assert!((s / (n as f64) - digest.mean()).abs() < 0.0001);
 
         // compression works
         assert!(digest.n_centroids() < 100);
@@ -365,6 +376,7 @@ mod tests {
         // generic tests
         assert_eq!(digest.count(), 1.);
         assert_eq!(digest.sum(), 13.37);
+        assert_eq!(digest.mean(), 13.37);
 
         // compression works
         assert_eq!(digest.n_centroids(), 1);
@@ -387,6 +399,7 @@ mod tests {
         // generic tests
         assert_eq!(digest.count(), 2.);
         assert_eq!(digest.sum(), 30.);
+        assert_eq!(digest.mean(), 15.);
 
         // compression works
         assert_eq!(digest.n_centroids(), 2);
@@ -416,6 +429,7 @@ mod tests {
         assert!(digest.quantile(0.5).is_nan());
         assert_eq!(digest.count(), 0.);
         assert_eq!(digest.sum(), 0.);
+        assert!(digest.mean().is_nan());
     }
 
     #[test]
