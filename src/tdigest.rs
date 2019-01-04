@@ -33,6 +33,8 @@ fn k1_inv(k: f64, delta: f64) -> f64 {
 #[derive(Debug)]
 struct TDigestInner {
     centroids: Vec<Centroid>,
+    min: f64,
+    max: f64,
     compression_factor: f64,
     backlog: Vec<Centroid>,
     max_backlog_size: usize,
@@ -42,6 +44,8 @@ impl TDigestInner {
     fn new(compression_factor: f64, max_backlog_size: usize) -> Self {
         Self {
             centroids: vec![],
+            min: f64::INFINITY,
+            max: f64::NEG_INFINITY,
             compression_factor,
             backlog: vec![],
             max_backlog_size,
@@ -54,6 +58,9 @@ impl TDigestInner {
 
     fn insert_weighted(&mut self, x: f64, w: f64) {
         self.backlog.push(Centroid { count: w, sum: x });
+
+        self.min = self.min.min(x);
+        self.max = self.max.max(x);
 
         if self.backlog.len() > self.max_backlog_size {
             self.merge();
@@ -255,6 +262,16 @@ impl TDigest {
         let inner = self.inner.borrow();
         inner.sum() / inner.count()
     }
+
+    /// TODO
+    pub fn min(&self) -> f64 {
+        self.inner.borrow().min
+    }
+
+    /// TODO
+    pub fn max(&self) -> f64 {
+        self.inner.borrow().max
+    }
 }
 
 #[cfg(test)]
@@ -315,6 +332,8 @@ mod tests {
         assert_eq!(digest.count(), 0.);
         assert_eq!(digest.sum(), 0.);
         assert!(digest.mean().is_nan());
+        assert!(digest.min().is_infinite() && digest.min().is_sign_positive());
+        assert!(digest.max().is_infinite() && digest.max().is_sign_negative());
     }
 
     #[test]
@@ -343,16 +362,22 @@ mod tests {
 
         let n = 100_000;
         let mut s = 0.;
+        let mut a = f64::INFINITY;
+        let mut b = f64::NEG_INFINITY;
         for _ in 0..n {
             let x = rng.sample(StandardNormal);
             digest.insert(x);
             s += x;
+            a = a.min(x);
+            b = b.max(x);
         }
 
         // generic tests
         assert_eq!(digest.count(), n as f64);
         assert!((s - digest.sum()).abs() < 0.0001);
         assert!((s / (n as f64) - digest.mean()).abs() < 0.0001);
+        assert_eq!(digest.min(), a);
+        assert_eq!(digest.max(), b);
 
         // compression works
         assert!(digest.n_centroids() < 100);
@@ -377,6 +402,8 @@ mod tests {
         assert_eq!(digest.count(), 1.);
         assert_eq!(digest.sum(), 13.37);
         assert_eq!(digest.mean(), 13.37);
+        assert_eq!(digest.min(), 13.37);
+        assert_eq!(digest.max(), 13.37);
 
         // compression works
         assert_eq!(digest.n_centroids(), 1);
@@ -400,6 +427,8 @@ mod tests {
         assert_eq!(digest.count(), 2.);
         assert_eq!(digest.sum(), 30.);
         assert_eq!(digest.mean(), 15.);
+        assert_eq!(digest.min(), 10.);
+        assert_eq!(digest.max(), 20.);
 
         // compression works
         assert_eq!(digest.n_centroids(), 2);
@@ -430,6 +459,8 @@ mod tests {
         assert_eq!(digest.count(), 0.);
         assert_eq!(digest.sum(), 0.);
         assert!(digest.mean().is_nan());
+        assert!(digest.min().is_infinite() && digest.min().is_sign_positive());
+        assert!(digest.max().is_infinite() && digest.max().is_sign_negative());
     }
 
     #[test]
