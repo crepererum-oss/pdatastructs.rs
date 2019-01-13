@@ -57,7 +57,10 @@ impl TDigestInner {
     }
 
     fn insert_weighted(&mut self, x: f64, w: f64) {
-        self.backlog.push(Centroid { count: w, sum: x });
+        self.backlog.push(Centroid {
+            count: w,
+            sum: x * w,
+        });
 
         self.min = self.min.min(x);
         self.max = self.max.max(x);
@@ -112,20 +115,27 @@ impl TDigestInner {
         self.centroids = result;
     }
 
+    #[inline(always)]
+    fn interpolate(a: f64, b: f64, t: f64) -> f64 {
+        debug_assert!((t >= 0.) && (t <= 1.));
+        debug_assert!(a <= b);
+        t * b + (1. - t) * a
+    }
+
     fn quantile(&self, q: f64) -> f64 {
         // empty case
         if self.centroids.is_empty() {
             return f64::NAN;
         }
 
-        let s: f64 = self.centroids.iter().map(|c| c.count).sum();
+        let s: f64 = self.count();
         let limit = s * q;
 
         // left tail?
         let c_first = &self.centroids[0];
         if limit <= c_first.count * 0.5 {
-            // TODO: interpolate w/ min
-            return c_first.mean();
+            let t = limit / (0.5 * c_first.count);
+            return Self::interpolate(self.min, c_first.mean(), t);
         }
 
         let mut cum = 0.;
@@ -137,16 +147,17 @@ impl TDigestInner {
                 cum -= 0.5 * c_last.count;
                 let delta = 0.5 * (c_last.count + c.count);
                 let t = (limit - cum) / delta;
-                debug_assert!((t >= 0.) && (t <= 1.));
-                return t * c.mean() + (1. - t) * c_last.mean();
+                return Self::interpolate(c_last.mean(), c.mean(), t);
             }
             cum += c.count;
         }
 
         // right tail
         let c_last = &self.centroids[self.centroids.len() - 1];
-        // TODO: interpolate w/ max
-        return c_last.mean();
+        cum -= 0.5 * c_last.count;
+        let delta = s - 0.5 * c_last.count;
+        let t = (limit - cum) / delta;
+        return Self::interpolate(c_last.mean(), self.max, t);
     }
 
     fn count(&self) -> f64 {
@@ -415,7 +426,7 @@ mod tests {
     }
 
     #[test]
-    fn with_two() {
+    fn with_two_symmetric() {
         let compression_factor = 100.;
         let max_backlog_size = 10;
         let mut digest = TDigest::new(compression_factor, max_backlog_size);
@@ -444,6 +455,35 @@ mod tests {
     }
 
     #[test]
+    fn with_two_assymmetric() {
+        let compression_factor = 100.;
+        let max_backlog_size = 10;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+
+        digest.insert_weighted(10., 1.);
+        digest.insert_weighted(20., 9.);
+
+        // generic tests
+        assert_eq!(digest.count(), 10.);
+        assert_eq!(digest.sum(), 190.);
+        assert_eq!(digest.mean(), 19.);
+        assert_eq!(digest.min(), 10.);
+        assert_eq!(digest.max(), 20.);
+
+        // compression works
+        assert_eq!(digest.n_centroids(), 2);
+
+        // test some known quantiles
+        assert_eq!(digest.quantile(0.), 10.); // min
+        assert_eq!(digest.quantile(0.05), 10.); // first centroid
+        assert_eq!(digest.quantile(0.175), 12.5);
+        assert_eq!(digest.quantile(0.3), 15.); // center
+        assert_eq!(digest.quantile(0.425), 17.5);
+        assert_eq!(digest.quantile(0.55), 20.); // second centroid
+        assert_eq!(digest.quantile(1.), 20.); // max
+    }
+
+    #[test]
     fn zero_weight() {
         let compression_factor = 2.;
         let max_backlog_size = 13;
@@ -461,6 +501,38 @@ mod tests {
         assert!(digest.mean().is_nan());
         assert!(digest.min().is_infinite() && digest.min().is_sign_positive());
         assert!(digest.max().is_infinite() && digest.max().is_sign_negative());
+    }
+
+    #[test]
+    fn highly_compressed() {
+        let compression_factor = 2.;
+        let max_backlog_size = 10;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+
+        digest.insert(10.);
+        digest.insert(20.);
+        for _ in 0..100 {
+            digest.insert(15.);
+        }
+
+        // generic tests
+        assert_eq!(digest.count(), 102.);
+        assert_eq!(digest.sum(), 1530.);
+        assert_eq!(digest.mean(), 15.);
+        assert_eq!(digest.min(), 10.);
+        assert_eq!(digest.max(), 20.);
+
+        // compression works
+        assert_eq!(digest.n_centroids(), 1);
+
+        // test some known quantiles
+        assert_eq!(digest.quantile(0.), 10.); // min
+        assert_eq!(digest.quantile(0.125), 11.25); // tail
+        assert_eq!(digest.quantile(0.25), 12.5); // tail
+        assert_eq!(digest.quantile(0.5), 15.); // center (single centroid)
+        assert_eq!(digest.quantile(0.75), 17.5); // tail
+        assert_eq!(digest.quantile(0.875), 18.75); // tail
+        assert_eq!(digest.quantile(1.), 20.); // max
     }
 
     #[test]
