@@ -160,6 +160,41 @@ impl TDigestInner {
         return Self::interpolate(c_last.mean(), self.max, t);
     }
 
+    fn cdf(&self, x: f64) -> f64 {
+        // empty case
+        if self.centroids.is_empty() {
+            return 0.;
+        }
+        if x < self.min {
+            return 0.;
+        }
+
+        let s: f64 = self.count();
+
+        let mut cum = 0.;
+        let mut last_mean = self.min;
+        let mut last_cum = 0.;
+        for c in &self.centroids {
+            let current_cum = cum + 0.5 * c.count;
+            if x < c.mean() {
+                let delta = c.mean() - last_mean;
+                let t = (x - last_mean) / delta;
+                return Self::interpolate(last_cum, current_cum, t) / s;
+            }
+            last_cum = current_cum;
+            cum += c.count;
+            last_mean = c.mean();
+        }
+
+        if x < self.max {
+            let delta = self.max - last_mean;
+            let t = (x - last_mean) / delta;
+            return Self::interpolate(last_cum, s, t) / s;
+        } else {
+            return 1.;
+        }
+    }
+
     fn count(&self) -> f64 {
         self.centroids.iter().map(|c| c.count).sum()
     }
@@ -245,6 +280,15 @@ impl TDigest {
 
         // get quantile on immutable state
         self.inner.borrow().quantile(q)
+    }
+
+    /// TODO
+    pub fn cdf(&self, x: f64) -> f64 {
+        // apply compression if required
+        self.inner.borrow_mut().merge();
+
+        // get quantile on immutable state
+        self.inner.borrow().cdf(x)
     }
 
     /// TODO
@@ -340,6 +384,7 @@ mod tests {
         assert_eq!(digest.n_centroids(), 0);
         assert!(digest.is_empty());
         assert!(digest.quantile(0.5).is_nan());
+        assert_eq!(digest.cdf(13.37), 0.);
         assert_eq!(digest.count(), 0.);
         assert_eq!(digest.sum(), 0.);
         assert!(digest.mean().is_nan());
@@ -423,6 +468,11 @@ mod tests {
         assert_eq!(digest.quantile(0.), 13.37);
         assert_eq!(digest.quantile(0.5), 13.37);
         assert_eq!(digest.quantile(1.), 13.37);
+
+        // test some known CDF values
+        assert_eq!(digest.cdf(13.36), 0.);
+        assert_eq!(digest.cdf(13.37), 1.);
+        assert_eq!(digest.cdf(13.38), 1.);
     }
 
     #[test]
@@ -452,6 +502,13 @@ mod tests {
         assert_eq!(digest.quantile(0.625), 17.5);
         assert_eq!(digest.quantile(0.75), 20.); // second centroid
         assert_eq!(digest.quantile(1.), 20.); // max
+
+        // test some known CDFs
+        assert_eq!(digest.cdf(10.), 0.25); // first centroid
+        assert_eq!(digest.cdf(12.5), 0.375);
+        assert_eq!(digest.cdf(15.), 0.5); // center
+        assert_eq!(digest.cdf(17.5), 0.625);
+        assert_eq!(digest.cdf(20.), 1.); // max
     }
 
     #[test]
@@ -481,6 +538,13 @@ mod tests {
         assert_eq!(digest.quantile(0.425), 17.5);
         assert_eq!(digest.quantile(0.55), 20.); // second centroid
         assert_eq!(digest.quantile(1.), 20.); // max
+
+        // test some known CDFs
+        assert_eq!(digest.cdf(10.), 0.05); // first centroid
+        assert_eq!(digest.cdf(12.5), 0.175);
+        assert_eq!(digest.cdf(15.), 0.3); // center
+        assert_eq!(digest.cdf(17.5), 0.425);
+        assert_eq!(digest.cdf(20.), 1.); // max
     }
 
     #[test]
@@ -496,6 +560,7 @@ mod tests {
         assert_eq!(digest.n_centroids(), 0);
         assert!(digest.is_empty());
         assert!(digest.quantile(0.5).is_nan());
+        assert_eq!(digest.cdf(13.37), 0.);
         assert_eq!(digest.count(), 0.);
         assert_eq!(digest.sum(), 0.);
         assert!(digest.mean().is_nan());
@@ -533,6 +598,15 @@ mod tests {
         assert_eq!(digest.quantile(0.75), 17.5); // tail
         assert_eq!(digest.quantile(0.875), 18.75); // tail
         assert_eq!(digest.quantile(1.), 20.); // max
+
+        // test some known CDFs
+        assert_eq!(digest.cdf(10.), 0.); // min
+        assert_eq!(digest.cdf(11.25), 0.125); // tail
+        assert_eq!(digest.cdf(12.5), 0.25); // tail
+        assert_eq!(digest.cdf(15.), 0.5); // center (single centroid)
+        assert_eq!(digest.cdf(17.5), 0.75); // tail
+        assert_eq!(digest.cdf(18.75), 0.875); // tail
+        assert_eq!(digest.cdf(20.), 1.); // max
     }
 
     #[test]
