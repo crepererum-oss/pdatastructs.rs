@@ -30,7 +30,7 @@ fn k1_inv(k: f64, delta: f64) -> f64 {
 }
 
 /// Inner data structure for tdigest to enable interior mutability.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct TDigestInner {
     centroids: Vec<Centroid>,
     min: f64,
@@ -465,7 +465,7 @@ impl TDigestInner {
 /// - ["Computing Extremely Accurate Quantiles using t-Digests", T. Dunning, O. Ertl, 2018](https://github.com/tdunning/t-digest/blob/master/docs/t-digest-paper/histo.pdf)
 /// - [Python Implementation, C. Davidson-pilon, MIT License](https://github.com/CamDavidsonPilon/tdigest)
 /// - [Go Implementation, InfluxData, Apache License 2.0](https://github.com/influxdata/tdigest)
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TDigest {
     inner: RefCell<TDigestInner>,
 }
@@ -994,5 +994,25 @@ mod tests {
         let max_backlog_size = 13;
         let digest = TDigest::new(compression_factor, max_backlog_size);
         digest.cdf(f64::NAN);
+    }
+
+    #[test]
+    fn clone() {
+        let compression_factor = 100.;
+        let max_backlog_size = 10;
+        let mut digest1 = TDigest::new(compression_factor, max_backlog_size);
+
+        digest1.insert(13.37);
+
+        let mut digest2 = digest1.clone();
+        digest2.insert(42.);
+
+        assert_eq!(digest1.n_centroids(), 1);
+        assert_eq!(digest1.min(), 13.37);
+        assert_eq!(digest1.max(), 13.37);
+
+        assert_eq!(digest2.n_centroids(), 2);
+        assert_eq!(digest2.min(), 13.37);
+        assert_eq!(digest2.max(), 42.);
     }
 }
