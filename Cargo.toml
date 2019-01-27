@@ -17,12 +17,15 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-bytecount = "0.4"
 fixedbitset = "^0.1.9"
 num-traits = "^0.2.4"
 rand = "0.6"
 succinct = "^0.4.4"
 void = "1"
+
+[dependencies.bytecount]
+version = "0.5"
+features = ["runtime-dispatch-simd"]
 
 [dev-dependencies]
 criterion = "0.2"
