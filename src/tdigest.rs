@@ -22,10 +22,13 @@ impl Centroid {
 }
 
 fn k1(q: f64, delta: f64) -> f64 {
+    let q = q.min(1.).max(0.);
     delta / (2. * f64::consts::PI) * (2. * q - 1.).asin()
 }
 
 fn k1_inv(k: f64, delta: f64) -> f64 {
+    let range = 0.25 * delta;
+    let k = k.min(range).max(-range);
     ((k * 2. * f64::consts::PI / delta).sin() + 1.) / 2.
 }
 
@@ -635,8 +638,8 @@ mod tests {
     use std::f64;
 
     #[test]
-    fn k_test1() {
-        let delta = 0.5;
+    fn k_q0_a() {
+        let delta = 1.5;
         let q = 0.5;
 
         let k = k1(q, delta);
@@ -647,8 +650,8 @@ mod tests {
     }
 
     #[test]
-    fn k_test2() {
-        let delta = 0.7;
+    fn k_q0_b() {
+        let delta = 1.7;
         let q = 0.5;
 
         let k = k1(q, delta);
@@ -659,8 +662,8 @@ mod tests {
     }
 
     #[test]
-    fn k_test3() {
-        let delta = 0.7;
+    fn k_q_other() {
+        let delta = 1.7;
         let q = 0.7;
 
         let k = k1(q, delta);
@@ -668,6 +671,38 @@ mod tests {
 
         let q2 = k1_inv(k, delta);
         assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k_q_underflow() {
+        let delta = 1.5;
+        let q = -0.1;
+
+        let ka = k1(q, delta);
+        let kb = k1(0., delta);
+        assert_eq!(ka, kb);
+        assert_eq!(ka, -delta / 4.);
+
+        let q2a = k1_inv(ka - 0.1, delta);
+        let q2b = k1_inv(ka, delta);
+        assert_eq!(q2a, q2b);
+        assert_eq!(q2a, 0.);
+    }
+
+    #[test]
+    fn k_q_overflow() {
+        let delta = 1.5;
+        let q = 1.1;
+
+        let ka = k1(q, delta);
+        let kb = k1(1., delta);
+        assert_eq!(ka, kb);
+        assert_eq!(ka, delta / 4.);
+
+        let q2a = k1_inv(ka + 0.1, delta);
+        let q2b = k1_inv(ka, delta);
+        assert_eq!(q2a, q2b);
+        assert_eq!(q2a, 1.);
     }
 
     #[test]
@@ -1014,5 +1049,27 @@ mod tests {
         assert_eq!(digest2.n_centroids(), 2);
         assert_eq!(digest2.min(), 13.37);
         assert_eq!(digest2.max(), 42.);
+    }
+
+    #[test]
+    fn regression_instablity() {
+        // this tests if compression works for very small compression factors
+        let compression_factor = 1.1;
+        let max_backlog_size = 10;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+
+        let mut rng = ChaChaRng::from_seed([0; 32]);
+
+        let n = 10_000;
+        for _ in 0..n {
+            let x = rng.sample(StandardNormal);
+            digest.insert(x);
+        }
+
+        // generic tests
+        assert_eq!(digest.count(), n as f64);
+
+        // compression works
+        assert_eq!(digest.n_centroids(), 1);
     }
 }
