@@ -4,6 +4,28 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker::PhantomData;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct FastMod {
+    d: u32,
+    c: u64,
+}
+
+impl FastMod {
+    fn new(d: u32) -> Self {
+        let c = 0xFFFFFFFFFFFFFFFF / (d as u64) + 1;
+
+        Self {
+            d,
+            c,
+        }
+    }
+
+    fn calc(&self, n: u32) -> u32 {
+        let (lowbits, _) = self.c.overflowing_mul(n as u64);
+        (((lowbits as u128) * (self.d as u128)) >> 64) as u32
+    }
+}
+
 /// Builder for iterators for multiple hash function results for the same given objects.
 ///
 /// In other words: for a given object `x`, HashIterBuilder creates an iterator that emits
@@ -59,6 +81,7 @@ where
     k: usize,
     buildhasher: B,
     f: Vec<u64>,
+    fastmod: FastMod,
 }
 
 impl<B> HashIterBuilder<B>
@@ -78,6 +101,7 @@ where
             k,
             buildhasher,
             f,
+            fastmod: FastMod::new(m as u32)
         }
     }
 
@@ -176,10 +200,9 @@ where
 
     fn next(&mut self) -> Option<usize> {
         if self.i < self.builder.k() {
-            let m = self.builder.m() as u64;
-            let i = (self.i as u64) % m;
+            let i = self.builder.fastmod.calc(self.i as u32) as u64;
             let f = self.builder.f(self.i);
-            let x = (self.h1 + (i * self.h2) + f) % m;
+            let x = self.builder.fastmod.calc((self.h1 + (i * self.h2) + f) as u32) as u64;
 
             self.i += 1;
 
