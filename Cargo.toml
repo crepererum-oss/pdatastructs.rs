@@ -36,5 +36,9 @@ name = "filters"
 harness = false
 
 [[bench]]
+name = "hash_utils"
+harness = false
+
+[[bench]]
 name = "hyperloglog"
 harness = false
