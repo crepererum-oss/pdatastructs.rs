@@ -160,7 +160,7 @@ impl TDigestInner {
         cum -= 0.5 * c_last.count;
         let delta = s - 0.5 * c_last.count;
         let t = (limit - cum) / delta;
-        return Self::interpolate(c_last.mean(), self.max, t);
+        Self::interpolate(c_last.mean(), self.max, t)
     }
 
     fn cdf(&self, x: f64) -> f64 {
@@ -192,9 +192,9 @@ impl TDigestInner {
         if x < self.max {
             let delta = self.max - last_mean;
             let t = (x - last_mean) / delta;
-            return Self::interpolate(last_cum, s, t) / s;
+            Self::interpolate(last_cum, s, t) / s
         } else {
-            return 1.;
+            1.
         }
     }
 
