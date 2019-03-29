@@ -59,6 +59,13 @@ impl TDigestInner {
         self.centroids.is_empty() && self.backlog.is_empty()
     }
 
+    fn clear(&mut self) {
+        self.centroids.clear();
+        self.min = f64::INFINITY;
+        self.max = f64::NEG_INFINITY;
+        self.backlog.clear();
+    }
+
     fn insert_weighted(&mut self, x: f64, w: f64) {
         self.backlog.push(Centroid {
             count: w,
@@ -507,6 +514,11 @@ impl TDigest {
     /// Check whether the digest has not received any positives weights yet.
     pub fn is_empty(&self) -> bool {
         self.inner.borrow().is_empty()
+    }
+
+    /// Clear data from digest as if there was no weight seen.
+    pub fn clear(&mut self) {
+        self.inner.borrow_mut().clear();
     }
 
     /// Get number of centroids tracked by the digest.
@@ -1071,5 +1083,27 @@ mod tests {
 
         // compression works
         assert_eq!(digest.n_centroids(), 1);
+    }
+
+    #[test]
+    fn clear() {
+        let compression_factor = 2.;
+        let max_backlog_size = 13;
+        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+
+        digest.insert(13.37);
+        digest.clear();
+
+        assert_eq!(digest.compression_factor(), 2.);
+        assert_eq!(digest.max_backlog_size(), 13);
+        assert_eq!(digest.n_centroids(), 0);
+        assert!(digest.is_empty());
+        assert!(digest.quantile(0.5).is_nan());
+        assert_eq!(digest.cdf(13.37), 0.);
+        assert_eq!(digest.count(), 0.);
+        assert_eq!(digest.sum(), 0.);
+        assert!(digest.mean().is_nan());
+        assert!(digest.min().is_infinite() && digest.min().is_sign_positive());
+        assert!(digest.max().is_infinite() && digest.max().is_sign_negative());
     }
 }
