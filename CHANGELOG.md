@@ -1,6 +1,24 @@
 # Changelog
 
-## 0.5 - Performance, Filter Trait, Rust 2018
+## 0.6 --- T-Digest, Lossy Counter
+
+### T-Digest
+- new and shiny
+
+### Filters
+- improve documentation of BloomFilter
+
+### Top-K
+- rename former Top-K to CMS Heap
+- add Lossy Counter implementation
+
+### CountMinSketch
+- `add` and `add_n` now return count after addition operation
+
+### Dependencies
+- update bytecount to 0.5
+
+## 0.5 --- Performance, Filter Trait, Rust 2018
 
 ### Global
 - benchmarking system
@@ -26,7 +44,7 @@
 - add QuotientFilter
 
 
-## 0.4 - CuckooFilter, API Improvements, Docs
+## 0.4 --- CuckooFilter, API Improvements, Docs
 
 - CountMinSketch: use `num-traits` as counters, `add_n` takes element by reference
 - CuckooFilter: new!
