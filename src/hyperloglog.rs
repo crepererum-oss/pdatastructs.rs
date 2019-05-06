@@ -70,7 +70,7 @@ use crate::hyperloglog_data::{
 #[derive(Clone)]
 pub struct HyperLogLog<T, B = BuildHasherDefault<DefaultHasher>>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     B: BuildHasher + Clone + Eq,
 {
     registers: Vec<u8>,
@@ -81,7 +81,7 @@ where
 
 impl<T> HyperLogLog<T>
 where
-    T: Hash,
+    T: Hash + ?Sized,
 {
     /// Creates a new, empty HyperLogLog.
     ///
@@ -97,7 +97,7 @@ where
 
 impl<T, B> HyperLogLog<T, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `new` but with a specific `BuildHasher`.
@@ -315,7 +315,7 @@ where
 
 impl<T> fmt::Debug for HyperLogLog<T>
 where
-    T: Hash,
+    T: Hash + ?Sized,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "HyperLogLog {{ b: {} }}", self.b)
@@ -329,6 +329,17 @@ where
     fn extend<S: IntoIterator<Item = T>>(&mut self, iter: S) {
         for elem in iter {
             self.add(&elem);
+        }
+    }
+}
+
+impl<'a, T> Extend<&'a T> for HyperLogLog<T>
+where
+    T: 'a + Hash + ?Sized,
+{
+    fn extend<S: IntoIterator<Item = &'a T>>(&mut self, iter: S) {
+        for elem in iter {
+            self.add(elem);
         }
     }
 }
@@ -549,6 +560,30 @@ mod tests {
         let mut hll = HyperLogLog::new(4);
         hll.extend(0..1000);
         assert_eq!(hll.count(), 571);
+        assert!(!hll.is_empty());
+    }
+
+    #[test]
+    fn extend_reference() {
+        let mut hll: HyperLogLog<i32> = HyperLogLog::new(4);
+        {
+            let v: Vec<i32> = (0..1000).collect();
+            hll.extend(&v); // Can `extend` by reference.
+        }
+        // `hll` is still usable after `v` is dropped:
+        assert_eq!(hll.count(), 571);
+        assert!(!hll.is_empty());
+    }
+
+    #[test]
+    fn slice() {
+        let mut hll: HyperLogLog<[u8]> = HyperLogLog::new(4);
+        {
+            let v = vec![0];
+            hll.add(&v[..]);
+        }
+        // `hll` is still usable after `v` is dropped:
+        assert_eq!(hll.count(), 1);
         assert!(!hll.is_empty());
     }
 }
