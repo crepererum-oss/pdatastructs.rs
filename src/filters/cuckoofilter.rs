@@ -25,7 +25,8 @@ pub struct CuckooFilterFull;
 /// ```
 /// use pdatastructs::filters::Filter;
 /// use pdatastructs::filters::cuckoofilter::CuckooFilter;
-/// use pdatastructs::rand::{ChaChaRng, SeedableRng};
+/// use pdatastructs::rand::SeedableRng;
+/// use rand_chacha::ChaChaRng;
 ///
 /// // set up filter
 /// let false_positive_rate = 0.02;  // = 2%

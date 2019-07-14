@@ -223,7 +223,7 @@ impl TDigestInner {
 /// ```
 /// use pdatastructs::tdigest::TDigest;
 /// use rand::{Rng, SeedableRng};
-/// use rand::distributions::StandardNormal;
+/// use rand_distr::StandardNormal;
 /// use rand_chacha::ChaChaRng;
 ///
 /// // Set up moderately compressed digest
@@ -644,9 +644,9 @@ impl TDigest {
 #[cfg(test)]
 mod tests {
     use super::{k1, k1_inv, TDigest};
-    use rand::distributions::StandardNormal;
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaChaRng;
+    use rand_distr::StandardNormal;
     use std::f64;
 
     #[test]

@@ -8,7 +8,8 @@ use std::fmt;
 /// # Examples
 /// ```
 /// use pdatastructs::reservoirsampling::ReservoirSampling;
-/// use pdatastructs::rand::{ChaChaRng, SeedableRng};
+/// use pdatastructs::rand::SeedableRng;
+/// use rand_chacha::ChaChaRng;
 ///
 /// // set up sampler for 10 elements
 /// let rng = ChaChaRng::from_seed([0; 32]);
