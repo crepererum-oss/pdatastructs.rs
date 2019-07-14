@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn hashset() {
-        let set: &mut Filter<u64, InsertErr = Void> = &mut HashSet::new();
+        let set: &mut dyn Filter<u64, InsertErr = Void> = &mut HashSet::new();
         assert!(set.is_empty());
         assert_eq!(set.len(), 0);
         assert!(!set.query(&42));
