@@ -171,31 +171,27 @@ where
         }
     }
 
-    fn estimate_bias(&self, e: f64) -> f64 {
+    fn neighbor_search_startpoints(lookup_array: &[f64], e: f64) -> (Option<usize>, Option<usize>) {
         // binary search first nearest neighbor
-        let lookup_array = RAW_ESTIMATE_DATA_VEC[self.b - RAW_ESTIMATE_DATA_OFFSET];
-        let mut idx_left = match lookup_array.binary_search_by(|v| v.partial_cmp(&e).unwrap()) {
-            Ok(i) => Some(i), // exact match
+        match lookup_array.binary_search_by(|v| v.partial_cmp(&e).unwrap()) {
+            Ok(i) => (Some(i), Some(i)),
             Err(i) => {
-                // no match, i points to left neighbor
-                if i < lookup_array.len() {
-                    Some(i) // neighbor is in-range
+                if i == 0 {
+                    // no left index
+                    (None, Some(0))
+                } else if i == lookup_array.len() {
+                    // no right index
+                    (Some(i - 1), None)
                 } else {
-                    Some(i - 1) // neighbor at the end of the array
+                    (Some(i), Some(i + 1))
                 }
             }
-        };
+        }
+    }
 
-        let mut idx_right = match idx_left {
-            Some(i) => {
-                if i < lookup_array.len() - 1 {
-                    Some(i + 1)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
+    fn estimate_bias(&self, e: f64) -> f64 {
+        let lookup_array = RAW_ESTIMATE_DATA_VEC[self.b - RAW_ESTIMATE_DATA_OFFSET];
+        let (mut idx_left, mut idx_right) = Self::neighbor_search_startpoints(lookup_array, e);
 
         // collect k nearest neighbors
         let k = 6;
@@ -355,6 +351,7 @@ where
 mod tests {
     use super::HyperLogLog;
     use crate::hash_utils::BuildHasherSeeded;
+    use crate::hyperloglog_data::{RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC};
 
     #[test]
     #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 18")]
@@ -661,5 +658,38 @@ mod tests {
         }
 
         hll.count();
+    }
+
+    #[test]
+    fn neighbor_search_startpoints() {
+        let b = 4;
+        let lookup_array = RAW_ESTIMATE_DATA_VEC[b - RAW_ESTIMATE_DATA_OFFSET];
+
+        assert_eq!(
+            HyperLogLog::<u32>::neighbor_search_startpoints(lookup_array, 0.),
+            (None, Some(0))
+        );
+        assert_eq!(
+            HyperLogLog::<u32>::neighbor_search_startpoints(lookup_array, 100.),
+            (Some(78), None)
+        );
+
+        assert_eq!(
+            HyperLogLog::<u32>::neighbor_search_startpoints(lookup_array, 20.),
+            (Some(15), Some(16))
+        );
+
+        assert_eq!(
+            HyperLogLog::<u32>::neighbor_search_startpoints(lookup_array, 11.),
+            (Some(0), Some(0))
+        );
+        assert_eq!(
+            HyperLogLog::<u32>::neighbor_search_startpoints(lookup_array, 77.2394),
+            (Some(78), Some(78))
+        );
+        assert_eq!(
+            HyperLogLog::<u32>::neighbor_search_startpoints(lookup_array, 13.2882),
+            (Some(4), Some(4))
+        );
     }
 }
