@@ -20,15 +20,15 @@ edition = "2018"
 fixedbitset = "^0.1.9"
 num-traits = "^0.2.4"
 rand = "0.7"
-succinct = "^0.4.4"
+succinct = "^0.5"
 void = "1"
 
 [dependencies.bytecount]
-version = "0.5"
+version = "0.6"
 features = ["runtime-dispatch-simd"]
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3"
 rand_chacha = "0.2"
 rand_distr = "0.2"
 
