@@ -72,6 +72,25 @@ recommendation into account, although passing this linter is currently not a har
 cargo clippy
 ```
 
+There are however some lints provided by `rustc` which needs to be fulfilled:
+
+- [`anonymous_parameters`](https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#anonymous-parameters)
+- [`bare_trait_objects`](https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#bare-trait-object)
+- [`const_err`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#const-err)
+- [`dead_code`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#dead-code)
+- [`illegal_floating_point_literal_pattern`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#illegal-floating-point-literal-pattern)
+- [`missing_debug_implementations`](https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#missing-debug-implementations)
+- [`missing_docs`](https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#missing-docs)
+- [`non_camel_case_types`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#non-camel-case-types)
+- [`non_snake_case`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#non-snake-case)
+- [`non_upper_case_globals`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#non-upper-case-globals)
+- [`unknown_lints`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#unknown-lints)
+- [`unreachable_code`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#unreachable-code)
+- [`unreachable_patterns`](https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html#unreachable-patterns)
+- [`unreachable_pub`](https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#unreachable-pub)
+- [`unsafe_code`](https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#unsafe-code)
+- [`unused_extern_crates`](https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#unused-extern-crates)
+
 ## Documentation
 The documentation of data structures uses the following style:
 
