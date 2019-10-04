@@ -1,6 +1,7 @@
 //! TDigest implementation.
 use std::cell::RefCell;
 use std::f64;
+use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
 struct Centroid {
@@ -21,35 +22,320 @@ impl Centroid {
     }
 }
 
-fn k1(q: f64, delta: f64) -> f64 {
-    let q = q.min(1.).max(0.);
-    delta / (2. * f64::consts::PI) * (2. * q - 1.).asin()
+/// Scale function used to compress a T-Digest.
+pub trait ScaleFunction {
+    /// Delta / compression factor.
+    fn delta(&self) -> f64;
+
+    /// Calculate scaled value `k` for given value `q` and `n` (number of samples).
+    ///
+    /// `q` will be limited to the range `[0, 1]`.
+    fn f(&self, q: f64, n: usize) -> f64;
+
+    /// Calculate unscaled value `q` for given value `k` and `n` (number of samples).
+    ///
+    /// `k` will be limited to the range `[f(0), f(1)]`.
+    fn f_inv(&self, k: f64, n: usize) -> f64;
 }
 
-fn k1_inv(k: f64, delta: f64) -> f64 {
-    let range = 0.25 * delta;
-    let k = k.min(range).max(-range);
-    ((k * 2. * f64::consts::PI / delta).sin() + 1.) / 2.
+/// k0 as mentioned in the paper, equivalent to `\delta / 2 * q`.
+///
+/// The following plot shows this function for a compression
+/// factor of 10:
+/// ```text
+///  5 +---------------------------------------------------+   
+///    |         +          +         +          +    **** |   
+///    |                                           ****    |   
+///  4 |-+                                      ****     +-|   
+///    |                                     ***           |   
+///    |                                 ****              |   
+///  3 |-+                            ****               +-|   
+///    |                           ***                     |   
+///    |                        ***                        |   
+///    |                     ***                           |   
+///  2 |-+               ****                            +-|   
+///    |              ****                                 |   
+///    |           ***                                     |   
+///  1 |-+     ****                                      +-|   
+///    |    ****                                           |   
+///    | ****    +          +         +          +         |   
+///  0 +---------------------------------------------------+   
+///    0        0.2        0.4       0.6        0.8        1   
+/// ```
+#[derive(Clone, Debug)]
+pub struct K0 {
+    delta: f64,
+}
+
+impl K0 {
+    /// Create new K0 scale function with given compression factor.
+    pub fn new(delta: f64) -> Self {
+        assert!(
+            (delta > 1.) && delta.is_finite(),
+            "delta ({}) must be greater than 1 and finite",
+            delta
+        );
+        Self { delta }
+    }
+}
+
+impl ScaleFunction for K0 {
+    fn delta(&self) -> f64 {
+        self.delta
+    }
+
+    fn f(&self, q: f64, _n: usize) -> f64 {
+        let q = q.min(1.).max(0.);
+        self.delta / 2. * q
+    }
+
+    fn f_inv(&self, k: f64, _n: usize) -> f64 {
+        let k = k.min(self.delta / 2.).max(0.);
+        k * 2. / self.delta
+    }
+}
+
+/// k1 as mentioned in the paper, equivalent to `\delta / (2 * PI) * \asin(2q - 1)`.
+///
+/// The following plot shows this function for a compression
+/// factor of 10:
+///
+/// ```text
+///   3 +---------------------------------------------------+
+///     |         +          +         +          +         |
+///     |                                                  *|
+///   2 |-+                                              ***|
+///     |                                            ****   |
+///   1 |-+                                      *****    +-|
+///     |                                  ******           |
+///     |                            *******                |
+///   0 |-+                    *******                    +-|
+///     |                *******                            |
+///     |           ******                                  |
+///  -1 |-+    *****                                      +-|
+///     |   ****                                            |
+///  -2 |***                                              +-|
+///     |*                                                  |
+///     |         +          +         +          +         |
+///  -3 +---------------------------------------------------+
+///     0        0.2        0.4       0.6        0.8        1
+/// ```
+#[derive(Clone, Debug)]
+pub struct K1 {
+    delta: f64,
+}
+
+impl K1 {
+    /// Create new K1 scale function with given compression factor.
+    pub fn new(delta: f64) -> Self {
+        assert!(
+            (delta > 1.) && delta.is_finite(),
+            "delta ({}) must be greater than 1 and finite",
+            delta
+        );
+        Self { delta }
+    }
+}
+
+impl ScaleFunction for K1 {
+    fn delta(&self) -> f64 {
+        self.delta
+    }
+
+    fn f(&self, q: f64, _n: usize) -> f64 {
+        let q = q.min(1.).max(0.);
+        self.delta / (2. * f64::consts::PI) * (2. * q - 1.).asin()
+    }
+
+    fn f_inv(&self, k: f64, _n: usize) -> f64 {
+        let range = 0.25 * self.delta;
+        let k = k.min(range).max(-range);
+        ((k * 2. * f64::consts::PI / self.delta).sin() + 1.) / 2.
+    }
+}
+
+/// k2 as mentioned in the paper, equivalent to `\delta / (4 * log(n / \delta) + 24) * log(q / (1 - q))`.
+///
+/// The following plot shows this function for a compression
+/// factor of 10 and 100 centroids:
+///
+/// ```text
+///  1.5 +-------------------------------------------------+   
+///      |         +         +         +         +        *|   
+///      |                                               **|   
+///    1 |-+                                            **-|   
+///      |                                            ***  |   
+///  0.5 |-+                                      ****   +-|   
+///      |                                   ******        |   
+///      |                            ********             |   
+///    0 |-+                  *********                  +-|   
+///      |             ********                            |   
+///      |        ******                                   |   
+/// -0.5 |-+   ****                                      +-|   
+///      |  ***                                            |   
+///   -1 |-**                                            +-|   
+///      |**                                               |   
+///      |*        +         +         +         +         |   
+/// -1.5 +-------------------------------------------------+   
+///      0        0.2       0.4       0.6       0.8        1   
+/// ```
+#[derive(Clone, Debug)]
+pub struct K2 {
+    delta: f64,
+}
+
+impl K2 {
+    /// Create new K2 scale function with given compression factor.
+    pub fn new(delta: f64) -> Self {
+        assert!(
+            (delta > 1.) && delta.is_finite(),
+            "delta ({}) must be greater than 1 and finite",
+            delta
+        );
+        Self { delta }
+    }
+
+    fn x(&self, n: usize) -> f64 {
+        self.delta / (4. * ((n as f64) / self.delta).ln() + 24.)
+    }
+
+    fn z(&self, k: f64, n: usize) -> f64 {
+        (k / self.x(n)).exp()
+    }
+}
+
+impl ScaleFunction for K2 {
+    fn delta(&self) -> f64 {
+        self.delta
+    }
+
+    fn f(&self, q: f64, n: usize) -> f64 {
+        let q = q.min(1.).max(0.);
+        self.x(n) * (q / (1. - q)).ln()
+    }
+
+    fn f_inv(&self, k: f64, n: usize) -> f64 {
+        if k.is_infinite() {
+            if k > 0. {
+                1.
+            } else {
+                0.
+            }
+        } else {
+            let z = self.z(k, n);
+            z / (z + 1.)
+        }
+    }
+}
+
+/// k3 as mentioned in the paper, equivalent to `\delta / (4 * log(n / \delta) + 21) * f(q)` with:
+///
+/// - `log(2 * q)` if `q <= 0.5`
+/// - `-log(2 * (1 - q))` if `q > 0.5`
+///
+/// The following plot shows this function for a compression
+/// factor of 10 and 100 centroids:
+///
+/// ```text
+///  1.5 +-------------------------------------------------+   
+///      |         +         +         +         +        *|   
+///      |                                                *|   
+///    1 |-+                                             *-|   
+///      |                                              ** |   
+///  0.5 |-+                                         *** +-|   
+///      |                                      *****      |   
+///      |                              *********          |   
+///    0 |-+                *************                +-|   
+///      |          *********                              |   
+///      |      *****                                      |   
+/// -0.5 |-+ ***                                         +-|   
+///      | **                                              |   
+///   -1 |-*                                             +-|   
+///      |*                                                |   
+///      |*        +         +         +         +         |   
+/// -1.5 +-------------------------------------------------+   
+///      0        0.2       0.4       0.6       0.8        1   
+/// ```
+#[derive(Clone, Debug)]
+pub struct K3 {
+    delta: f64,
+}
+
+impl K3 {
+    /// Create new K3 scale function with given compression factor.
+    pub fn new(delta: f64) -> Self {
+        assert!(
+            (delta > 1.) && delta.is_finite(),
+            "delta ({}) must be greater than 1 and finite",
+            delta
+        );
+        Self { delta }
+    }
+
+    fn x(&self, n: usize) -> f64 {
+        self.delta / (4. * ((n as f64) / self.delta).ln() + 21.)
+    }
+}
+
+impl ScaleFunction for K3 {
+    fn delta(&self) -> f64 {
+        self.delta
+    }
+
+    fn f(&self, q: f64, n: usize) -> f64 {
+        let q = q.min(1.).max(0.);
+        let y = if q <= 0.5 {
+            (2. * q).ln()
+        } else {
+            -(2. * (1. - q)).ln()
+        };
+        self.x(n) * y
+    }
+
+    fn f_inv(&self, k: f64, n: usize) -> f64 {
+        if k.is_infinite() {
+            if k > 0. {
+                1.
+            } else {
+                0.
+            }
+        } else {
+            let x = self.x(n);
+            if k <= 0. {
+                (k / x).exp() / 2.
+            } else {
+                1. - (-k / x).exp() / 2.
+            }
+        }
+    }
 }
 
 /// Inner data structure for tdigest to enable interior mutability.
 #[derive(Clone, Debug)]
-struct TDigestInner {
+struct TDigestInner<S>
+where
+    S: Clone + Debug + ScaleFunction,
+{
     centroids: Vec<Centroid>,
+    n_samples: usize,
     min: f64,
     max: f64,
-    compression_factor: f64,
+    scale_function: S,
     backlog: Vec<Centroid>,
     max_backlog_size: usize,
 }
 
-impl TDigestInner {
-    fn new(compression_factor: f64, max_backlog_size: usize) -> Self {
+impl<S> TDigestInner<S>
+where
+    S: Clone + Debug + ScaleFunction,
+{
+    fn new(scale_function: S, max_backlog_size: usize) -> Self {
         Self {
             centroids: vec![],
+            n_samples: 0,
             min: f64::INFINITY,
             max: f64::NEG_INFINITY,
-            compression_factor,
+            scale_function,
             backlog: vec![],
             max_backlog_size,
         }
@@ -71,6 +357,7 @@ impl TDigestInner {
             count: w,
             sum: x * w,
         });
+        self.n_samples += 1;
 
         self.min = self.min.min(x);
         self.max = self.max.max(x);
@@ -99,9 +386,9 @@ impl TDigestInner {
         let s: f64 = x.iter().map(|c| c.count).sum();
 
         let mut q_0 = 0.;
-        let mut q_limit = k1_inv(
-            k1(q_0, self.compression_factor) + 1.,
-            self.compression_factor,
+        let mut q_limit = self.scale_function.f_inv(
+            self.scale_function.f(q_0, self.n_samples) + 1.,
+            self.n_samples,
         );
 
         let mut result = vec![];
@@ -112,9 +399,9 @@ impl TDigestInner {
                 current = current.fuse(&next);
             } else {
                 q_0 += current.count / s;
-                q_limit = k1_inv(
-                    k1(q_0, self.compression_factor) + 1.,
-                    self.compression_factor,
+                q_limit = self.scale_function.f_inv(
+                    self.scale_function.f(q_0, self.n_samples) + 1.,
+                    self.n_samples,
                 );
                 result.push(current);
                 current = next;
@@ -221,7 +508,7 @@ impl TDigestInner {
 ///
 /// # Examples
 /// ```
-/// use pdatastructs::tdigest::TDigest;
+/// use pdatastructs::tdigest::{K1, TDigest};
 /// use rand::{Rng, SeedableRng};
 /// use rand_distr::StandardNormal;
 /// use rand_chacha::ChaChaRng;
@@ -229,7 +516,8 @@ impl TDigestInner {
 /// // Set up moderately compressed digest
 /// let compression_factor = 100.;
 /// let max_backlog_size = 10;
-/// let mut digest = TDigest::new(compression_factor, max_backlog_size);
+/// let scale_function = K1::new(compression_factor);
+/// let mut digest = TDigest::new(scale_function, max_backlog_size);
 ///
 /// // sample data from normal distribution
 /// let mut rng = ChaChaRng::from_seed([0; 32]);
@@ -476,34 +764,34 @@ impl TDigestInner {
 /// - [Python Implementation, C. Davidson-pilon, MIT License](https://github.com/CamDavidsonPilon/tdigest)
 /// - [Go Implementation, InfluxData, Apache License 2.0](https://github.com/influxdata/tdigest)
 #[derive(Clone, Debug)]
-pub struct TDigest {
-    inner: RefCell<TDigestInner>,
+pub struct TDigest<S>
+where
+    S: Clone + Debug + ScaleFunction,
+{
+    inner: RefCell<TDigestInner<S>>,
 }
 
-impl TDigest {
+impl<S> TDigest<S>
+where
+    S: Clone + Debug + ScaleFunction,
+{
     /// Create a new, empty TDigest w/ the following parameters:
     ///
-    /// - `compression_factor`: how many centroids (relative to the added weight) should be kept,
-    ///   i.e. higher factors mean more precise distribution information but less performance and
-    ///   higher memory requirements.
+    /// - `scale_function`: how many centroids (relative to the added weight) should be kept,
+    ///   i.e. scale function higher delta (compression factor) mean more precise distribution
+    ///   information but less performance and higher memory requirements.
     /// - `max_backlog_size`: maximum number of centroids to keep in a backlog before starting a
     ///   merge, i.e. higher numbers mean higher insertion performance but higher temporary memory
     ///   requirements.
-    pub fn new(compression_factor: f64, max_backlog_size: usize) -> Self {
-        assert!(
-            (compression_factor > 1.) && compression_factor.is_finite(),
-            "compression_factor ({}) must be greater than 1 and finite",
-            compression_factor
-        );
-
+    pub fn new(scale_function: S, max_backlog_size: usize) -> Self {
         Self {
-            inner: RefCell::new(TDigestInner::new(compression_factor, max_backlog_size)),
+            inner: RefCell::new(TDigestInner::new(scale_function, max_backlog_size)),
         }
     }
 
     /// Get compression factor of the TDigest.
-    pub fn compression_factor(&self) -> f64 {
-        self.inner.borrow().compression_factor
+    pub fn delta(&self) -> f64 {
+        self.inner.borrow().scale_function.delta()
     }
 
     /// Get the maximum number of centroids to be stored in the backlog before starting a merge.
@@ -643,87 +931,408 @@ impl TDigest {
 
 #[cfg(test)]
 mod tests {
-    use super::{k1, k1_inv, TDigest};
+    use super::{ScaleFunction, TDigest, K0, K1, K2, K3};
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaChaRng;
     use rand_distr::StandardNormal;
     use std::f64;
 
     #[test]
-    fn k_q0_a() {
+    #[should_panic(expected = "delta (1) must be greater than 1 and finite")]
+    fn k0_new_panics_delta_a() {
+        K0::new(1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (inf) must be greater than 1 and finite")]
+    fn k0_new_panics_delta_b() {
+        K0::new(f64::INFINITY);
+    }
+
+    #[test]
+    fn k0_q0_a() {
         let delta = 1.5;
-        let q = 0.5;
+        let scale_function = K0::new(delta);
+        let q = 0.;
+        let n_samples = 1;
 
-        let k = k1(q, delta);
+        let k = scale_function.f(q, n_samples);
         assert_eq!(k, 0.);
 
-        let q2 = k1_inv(k, delta);
+        let q2 = scale_function.f_inv(k, n_samples);
         assert_eq!(q2, q);
     }
 
     #[test]
-    fn k_q0_b() {
+    fn k0_q0_b() {
         let delta = 1.7;
-        let q = 0.5;
+        let scale_function = K0::new(delta);
+        let q = 0.;
+        let n_samples = 1;
 
-        let k = k1(q, delta);
+        let k = scale_function.f(q, n_samples);
         assert_eq!(k, 0.);
 
-        let q2 = k1_inv(k, delta);
+        let q2 = scale_function.f_inv(k, n_samples);
         assert_eq!(q2, q);
     }
 
     #[test]
-    fn k_q_other() {
+    fn k0_q1_a() {
+        let delta = 2.;
+        let scale_function = K0::new(delta);
+        let q = 1.;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_eq!(k, 1.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k0_q1_b() {
+        let delta = 10.;
+        let scale_function = K0::new(delta);
+        let q = 1.;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_eq!(k, 5.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k0_q_other() {
         let delta = 1.7;
+        let scale_function = K0::new(delta);
         let q = 0.7;
+        let n_samples = 1;
 
-        let k = k1(q, delta);
+        let k = scale_function.f(q, n_samples);
         assert_ne!(k, 0.);
 
-        let q2 = k1_inv(k, delta);
+        let q2 = scale_function.f_inv(k, n_samples);
         assert_eq!(q2, q);
     }
 
     #[test]
-    fn k_q_underflow() {
+    fn k0_q_underflow() {
         let delta = 1.5;
+        let scale_function = K0::new(delta);
         let q = -0.1;
+        let n_samples = 1;
 
-        let ka = k1(q, delta);
-        let kb = k1(0., delta);
+        let ka = scale_function.f(q, n_samples);
+        let kb = scale_function.f(0., n_samples);
         assert_eq!(ka, kb);
-        assert_eq!(ka, -delta / 4.);
+        assert_eq!(ka, 0.);
 
-        let q2a = k1_inv(ka - 0.1, delta);
-        let q2b = k1_inv(ka, delta);
+        let q2a = scale_function.f_inv(ka - 0.1, n_samples);
+        let q2b = scale_function.f_inv(ka, n_samples);
         assert_eq!(q2a, q2b);
         assert_eq!(q2a, 0.);
     }
 
     #[test]
-    fn k_q_overflow() {
+    fn k0_q_overflow() {
         let delta = 1.5;
+        let scale_function = K0::new(delta);
         let q = 1.1;
+        let n_samples = 1;
 
-        let ka = k1(q, delta);
-        let kb = k1(1., delta);
+        let ka = scale_function.f(q, n_samples);
+        let kb = scale_function.f(1., n_samples);
+        assert_eq!(ka, kb);
+        assert_eq!(ka, delta / 2.);
+
+        let q2a = scale_function.f_inv(ka + 0.1, n_samples);
+        let q2b = scale_function.f_inv(ka, n_samples);
+        assert_eq!(q2a, q2b);
+        assert_eq!(q2a, 1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (1) must be greater than 1 and finite")]
+    fn k1_new_panics_delta_a() {
+        K1::new(1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (inf) must be greater than 1 and finite")]
+    fn k1_new_panics_delta_b() {
+        K1::new(f64::INFINITY);
+    }
+
+    #[test]
+    fn k1_q05_a() {
+        let delta = 1.5;
+        let scale_function = K1::new(delta);
+        let q = 0.5;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_eq!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k1_q05_b() {
+        let delta = 1.7;
+        let scale_function = K1::new(delta);
+        let q = 0.5;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_eq!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k1_q_other() {
+        let delta = 1.7;
+        let scale_function = K1::new(delta);
+        let q = 0.7;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_ne!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k1_q_underflow() {
+        let delta = 1.5;
+        let scale_function = K1::new(delta);
+        let q = -0.1;
+        let n_samples = 1;
+
+        let ka = scale_function.f(q, n_samples);
+        let kb = scale_function.f(0., n_samples);
+        assert_eq!(ka, kb);
+        assert_eq!(ka, -delta / 4.);
+
+        let q2a = scale_function.f_inv(ka - 0.1, n_samples);
+        let q2b = scale_function.f_inv(ka, n_samples);
+        assert_eq!(q2a, q2b);
+        assert_eq!(q2a, 0.);
+    }
+
+    #[test]
+    fn k1_q_overflow() {
+        let delta = 1.5;
+        let scale_function = K1::new(delta);
+        let q = 1.1;
+        let n_samples = 1;
+
+        let ka = scale_function.f(q, n_samples);
+        let kb = scale_function.f(1., n_samples);
         assert_eq!(ka, kb);
         assert_eq!(ka, delta / 4.);
 
-        let q2a = k1_inv(ka + 0.1, delta);
-        let q2b = k1_inv(ka, delta);
+        let q2a = scale_function.f_inv(ka + 0.1, n_samples);
+        let q2b = scale_function.f_inv(ka, n_samples);
+        assert_eq!(q2a, q2b);
+        assert_eq!(q2a, 1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (1) must be greater than 1 and finite")]
+    fn k2_new_panics_delta_a() {
+        K2::new(1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (inf) must be greater than 1 and finite")]
+    fn k2_new_panics_delta_b() {
+        K2::new(f64::INFINITY);
+    }
+
+    #[test]
+    fn k2_q05_a() {
+        let delta = 1.5;
+        let scale_function = K2::new(delta);
+        let q = 0.5;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_eq!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k2_q05_b() {
+        let delta = 1.7;
+        let scale_function = K2::new(delta);
+        let q = 0.5;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_eq!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k2_q_other() {
+        let delta = 1.7;
+        let scale_function = K2::new(delta);
+        let q = 0.7;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_ne!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k2_q_underflow() {
+        let delta = 1.5;
+        let scale_function = K2::new(delta);
+        let q = -0.1;
+        let n_samples = 1;
+
+        let ka = scale_function.f(q, n_samples);
+        let kb = scale_function.f(0., n_samples);
+        assert_eq!(ka, kb);
+        assert_eq!(ka, -f64::INFINITY);
+
+        let q2a = scale_function.f_inv(ka - 0.1, n_samples);
+        let q2b = scale_function.f_inv(ka, n_samples);
+        assert_eq!(q2a, q2b);
+        assert_eq!(q2a, 0.);
+    }
+
+    #[test]
+    fn k2_q_overflow() {
+        let delta = 1.5;
+        let scale_function = K2::new(delta);
+        let q = 1.1;
+        let n_samples = 1;
+
+        let ka = scale_function.f(q, n_samples);
+        let kb = scale_function.f(1., n_samples);
+        assert_eq!(ka, kb);
+        assert_eq!(ka, f64::INFINITY);
+
+        let q2a = scale_function.f_inv(ka + 0.1, n_samples);
+        let q2b = scale_function.f_inv(ka, n_samples);
+        assert_eq!(q2a, q2b);
+        assert_eq!(q2a, 1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (1) must be greater than 1 and finite")]
+    fn k3_new_panics_delta_a() {
+        K3::new(1.);
+    }
+
+    #[test]
+    #[should_panic(expected = "delta (inf) must be greater than 1 and finite")]
+    fn k3_new_panics_delta_b() {
+        K3::new(f64::INFINITY);
+    }
+
+    #[test]
+    fn k3_q05_a() {
+        let delta = 1.5;
+        let scale_function = K3::new(delta);
+        let q = 0.5;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_eq!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k3_q05_b() {
+        let delta = 1.7;
+        let scale_function = K3::new(delta);
+        let q = 0.5;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_eq!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k3_q_other() {
+        let delta = 1.7;
+        let scale_function = K3::new(delta);
+        let q = 0.7;
+        let n_samples = 1;
+
+        let k = scale_function.f(q, n_samples);
+        assert_ne!(k, 0.);
+
+        let q2 = scale_function.f_inv(k, n_samples);
+        assert_eq!(q2, q);
+    }
+
+    #[test]
+    fn k3_q_underflow() {
+        let delta = 1.5;
+        let scale_function = K3::new(delta);
+        let q = -0.1;
+        let n_samples = 1;
+
+        let ka = scale_function.f(q, n_samples);
+        let kb = scale_function.f(0., n_samples);
+        assert_eq!(ka, kb);
+        assert_eq!(ka, -f64::INFINITY);
+
+        let q2a = scale_function.f_inv(ka - 0.1, n_samples);
+        let q2b = scale_function.f_inv(ka, n_samples);
+        assert_eq!(q2a, q2b);
+        assert_eq!(q2a, 0.);
+    }
+
+    #[test]
+    fn k3_q_overflow() {
+        let delta = 1.5;
+        let scale_function = K3::new(delta);
+        let q = 1.1;
+        let n_samples = 1;
+
+        let ka = scale_function.f(q, n_samples);
+        let kb = scale_function.f(1., n_samples);
+        assert_eq!(ka, kb);
+        assert_eq!(ka, f64::INFINITY);
+
+        let q2a = scale_function.f_inv(ka + 0.1, n_samples);
+        let q2b = scale_function.f_inv(ka, n_samples);
         assert_eq!(q2a, q2b);
         assert_eq!(q2a, 1.);
     }
 
     #[test]
     fn new_empty() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let digest = TDigest::new(scale_function, max_backlog_size);
 
-        assert_eq!(digest.compression_factor(), 2.);
+        assert_eq!(digest.delta(), 2.);
         assert_eq!(digest.max_backlog_size(), 13);
         assert_eq!(digest.n_centroids(), 0);
         assert!(digest.is_empty());
@@ -737,26 +1346,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "compression_factor (1) must be greater than 1 and finite")]
-    fn new_panics_compression_factor_a() {
-        let compression_factor = 1.;
-        let max_backlog_size = 13;
-        TDigest::new(compression_factor, max_backlog_size);
-    }
-
-    #[test]
-    #[should_panic(expected = "compression_factor (inf) must be greater than 1 and finite")]
-    fn new_panics_compression_factor_b() {
-        let compression_factor = f64::INFINITY;
-        let max_backlog_size = 13;
-        TDigest::new(compression_factor, max_backlog_size);
-    }
-
-    #[test]
     fn with_normal_distribution() {
-        let compression_factor = 100.;
+        let delta = 100.;
         let max_backlog_size = 10;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
 
         let mut rng = ChaChaRng::from_seed([0; 32]);
 
@@ -792,9 +1386,10 @@ mod tests {
 
     #[test]
     fn with_single() {
-        let compression_factor = 100.;
+        let delta = 100.;
         let max_backlog_size = 10;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
 
         digest.insert(13.37);
 
@@ -821,9 +1416,10 @@ mod tests {
 
     #[test]
     fn with_two_symmetric() {
-        let compression_factor = 100.;
+        let delta = 100.;
         let max_backlog_size = 10;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
 
         digest.insert(10.);
         digest.insert(20.);
@@ -857,9 +1453,10 @@ mod tests {
 
     #[test]
     fn with_two_assymmetric() {
-        let compression_factor = 100.;
+        let delta = 100.;
         let max_backlog_size = 10;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
 
         digest.insert_weighted(10., 1.);
         digest.insert_weighted(20., 9.);
@@ -893,13 +1490,14 @@ mod tests {
 
     #[test]
     fn zero_weight() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
 
         digest.insert_weighted(13.37, 0.);
 
-        assert_eq!(digest.compression_factor(), 2.);
+        assert_eq!(digest.delta(), 2.);
         assert_eq!(digest.max_backlog_size(), 13);
         assert_eq!(digest.n_centroids(), 0);
         assert!(digest.is_empty());
@@ -914,9 +1512,10 @@ mod tests {
 
     #[test]
     fn highly_compressed() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 10;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
 
         digest.insert(10.);
         digest.insert(20.);
@@ -956,98 +1555,109 @@ mod tests {
     #[test]
     #[should_panic(expected = "q (-1) must be in [0, 1]")]
     fn invalid_q_a() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let digest = TDigest::new(scale_function, max_backlog_size);
         digest.quantile(-1.);
     }
 
     #[test]
     #[should_panic(expected = "q (2) must be in [0, 1]")]
     fn invalid_q_b() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let digest = TDigest::new(scale_function, max_backlog_size);
         digest.quantile(2.);
     }
 
     #[test]
     #[should_panic(expected = "q (NaN) must be in [0, 1]")]
     fn invalid_q_c() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let digest = TDigest::new(scale_function, max_backlog_size);
         digest.quantile(f64::NAN);
     }
 
     #[test]
     #[should_panic(expected = "q (inf) must be in [0, 1]")]
     fn invalid_q_d() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let digest = TDigest::new(scale_function, max_backlog_size);
         digest.quantile(f64::INFINITY);
     }
 
     #[test]
     #[should_panic(expected = "w (-1) must be greater or equal than zero and finite")]
     fn invalid_w_a() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
         digest.insert_weighted(13.37, -1.);
     }
 
     #[test]
     #[should_panic(expected = "w (inf) must be greater or equal than zero and finite")]
     fn invalid_w_b() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
         digest.insert_weighted(13.37, f64::INFINITY);
     }
 
     #[test]
     #[should_panic(expected = "x (-inf) must be finite")]
     fn invalid_x_a() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
         digest.insert(f64::NEG_INFINITY);
     }
 
     #[test]
     #[should_panic(expected = "x (inf) must be finite")]
     fn invalid_x_b() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
         digest.insert(f64::INFINITY);
     }
 
     #[test]
     #[should_panic(expected = "x (NaN) must be finite")]
     fn invalid_x_c() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
         digest.insert(f64::NAN);
     }
 
     #[test]
     #[should_panic(expected = "x must not be NaN")]
     fn invalid_cdf() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let digest = TDigest::new(scale_function, max_backlog_size);
         digest.cdf(f64::NAN);
     }
 
     #[test]
     fn clone() {
-        let compression_factor = 100.;
+        let delta = 100.;
         let max_backlog_size = 10;
-        let mut digest1 = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest1 = TDigest::new(scale_function, max_backlog_size);
 
         digest1.insert(13.37);
 
@@ -1066,9 +1676,10 @@ mod tests {
     #[test]
     fn regression_instablity() {
         // this tests if compression works for very small compression factors
-        let compression_factor = 1.1;
+        let delta = 1.1;
         let max_backlog_size = 10;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
 
         let mut rng = ChaChaRng::from_seed([0; 32]);
 
@@ -1087,14 +1698,15 @@ mod tests {
 
     #[test]
     fn clear() {
-        let compression_factor = 2.;
+        let delta = 2.;
         let max_backlog_size = 13;
-        let mut digest = TDigest::new(compression_factor, max_backlog_size);
+        let scale_function = K1::new(delta);
+        let mut digest = TDigest::new(scale_function, max_backlog_size);
 
         digest.insert(13.37);
         digest.clear();
 
-        assert_eq!(digest.compression_factor(), 2.);
+        assert_eq!(digest.delta(), 2.);
         assert_eq!(digest.max_backlog_size(), 13);
         assert_eq!(digest.n_centroids(), 0);
         assert!(digest.is_empty());
