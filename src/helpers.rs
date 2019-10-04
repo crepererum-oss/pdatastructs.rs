@@ -5,7 +5,7 @@ use succinct::storage::BlockType;
 use succinct::IntVector;
 
 /// Quicker all-zero initialization of an IntVector.
-pub fn all_zero_intvector<T>(element_bits: usize, len: usize) -> IntVector<T>
+pub(crate) fn all_zero_intvector<T>(element_bits: usize, len: usize) -> IntVector<T>
 where
     T: BlockType + Zero,
 {
