@@ -8,6 +8,19 @@ Simple probabilistic data structures
 [![License](https://img.shields.io/crates/l/pdatastructs.svg)](#license)
 [![Dependency Status](https://deps.rs/repo/github/crepererum/pdatastructs.rs/status.svg)](https://deps.rs/repo/github/crepererum/pdatastructs.rs)
 
+The following data structures are implemented:
+
+- CountMinSketch
+- Filters:
+  - BloomFilter
+  - CuckooFilter
+  - QuotientFilter
+- HyperLogLog
+- ReservoirSampling
+- T-Digest
+- Top-K:
+  - CMSHeap
+  - LossyCounter
 
 ## License
 
