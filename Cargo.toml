@@ -17,7 +17,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-fixedbitset = "^0.1.9"
+fixedbitset = "0.2"
 num-traits = "^0.2.4"
 rand = "0.7"
 succinct = "^0.5"
