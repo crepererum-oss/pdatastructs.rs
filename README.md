@@ -2,7 +2,7 @@
 
 Simple probabilistic data structures
 
-[![Build Status](https://travis-ci.org/crepererum/pdatastructs.rs.svg?branch=master)](https://travis-ci.org/crepererum/pdatastructs.rs)
+[![Build Status](https://github.com/crepererum/pdatastructs.rs/workflows/CI/badge.svg)](https://github.com/crepererum/pdatastructs.rs/actions?query=workflow%3ACI)
 [![Crates.io](https://img.shields.io/crates/v/pdatastructs.svg)](https://crates.io/crates/pdatastructs)
 [![Documentation](https://docs.rs/pdatastructs/badge.svg)](https://docs.rs/pdatastructs/)
 [![License](https://img.shields.io/crates/l/pdatastructs.svg)](#license)
