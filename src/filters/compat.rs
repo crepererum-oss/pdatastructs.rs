@@ -1,9 +1,8 @@
 //! Implementation of `Filter` for certain non-probabilistic data structures. This can be helpful
 //! for debugging and performance comparisons.
 use std::collections::HashSet;
+use std::convert::Infallible;
 use std::hash::{BuildHasher, Hash};
-
-use void::Void;
 
 use crate::filters::Filter;
 
@@ -12,7 +11,7 @@ where
     T: Clone + Eq + Hash,
     S: BuildHasher,
 {
-    type InsertErr = Void;
+    type InsertErr = Infallible;
 
     fn clear(&mut self) {
         self.clear();
@@ -38,14 +37,13 @@ where
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-
-    use void::Void;
+    use std::convert::Infallible;
 
     use crate::filters::Filter;
 
     #[test]
     fn hashset() {
-        let set: &mut dyn Filter<u64, InsertErr = Void> = &mut HashSet::new();
+        let set: &mut dyn Filter<u64, InsertErr = Infallible> = &mut HashSet::new();
         assert!(set.is_empty());
         assert_eq!(set.len(), 0);
         assert!(!set.query(&42));

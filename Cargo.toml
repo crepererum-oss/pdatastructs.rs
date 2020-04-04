@@ -21,7 +21,6 @@ fixedbitset = "0.2"
 num-traits = "^0.2.4"
 rand = "0.7"
 succinct = "^0.5"
-void = "1"
 
 [dependencies.bytecount]
 version = "0.6"

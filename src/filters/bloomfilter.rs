@@ -1,11 +1,11 @@
 //! BloomFilter implementation.
 use std::collections::hash_map::DefaultHasher;
+use std::convert::Infallible;
 use std::fmt;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 use std::marker::PhantomData;
 
 use fixedbitset::FixedBitSet;
-use void::Void;
 
 use crate::filters::Filter;
 use crate::hash_utils::HashIterBuilder;
@@ -256,7 +256,7 @@ impl<T> Filter<T> for BloomFilter<T>
 where
     T: Hash,
 {
-    type InsertErr = Void;
+    type InsertErr = Infallible;
 
     fn clear(&mut self) {
         self.bs.clear()
