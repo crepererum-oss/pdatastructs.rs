@@ -22,7 +22,8 @@ where
     }
 
     fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
-        unimplemented!()
+        self.extend(other.iter().cloned());
+        Ok(())
     }
 
     fn is_empty(&self) -> bool {
@@ -41,22 +42,30 @@ where
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    use std::convert::Infallible;
 
     use crate::filters::Filter;
 
     #[test]
     fn hashset() {
-        let set: &mut dyn Filter<u64, InsertErr = Infallible> = &mut HashSet::new();
-        assert!(set.is_empty());
-        assert_eq!(set.len(), 0);
-        assert!(!set.query(&42));
+        type H = HashSet<u64>;
 
-        assert!(set.insert(&42).unwrap());
-        assert!(!set.insert(&42).unwrap());
-        assert!(!set.is_empty());
-        assert_eq!(set.len(), 1);
-        assert!(set.query(&42));
-        assert!(!set.query(&13));
+        let mut set1: H = HashSet::new();
+        assert!(<H as Filter<u64>>::is_empty(&set1));
+        assert_eq!(<H as Filter<u64>>::len(&set1), 0);
+        assert!(!<H as Filter<u64>>::query(&set1, &42));
+
+        assert!(<H as Filter<u64>>::insert(&mut set1, &42).unwrap());
+        assert!(!<H as Filter<u64>>::insert(&mut set1, &42).unwrap());
+        assert!(!<H as Filter<u64>>::is_empty(&set1));
+        assert_eq!(<H as Filter<u64>>::len(&set1), 1);
+        assert!(<H as Filter<u64>>::query(&set1, &42));
+        assert!(!<H as Filter<u64>>::query(&set1, &13));
+
+        let mut set2: H = HashSet::new();
+        set2.insert(1337);
+        <H as Filter<u64>>::union(&mut set1, &set2).unwrap();
+        assert!(<H as Filter<u64>>::query(&set1, &42));
+        assert!(!<H as Filter<u64>>::query(&set1, &13));
+        assert!(<H as Filter<u64>>::query(&set1, &1337));
     }
 }
