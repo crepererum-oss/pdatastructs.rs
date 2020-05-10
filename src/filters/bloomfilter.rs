@@ -223,38 +223,12 @@ where
     pub fn buildhasher(&self) -> &B {
         self.builder.buildhasher()
     }
-
-    /// Add the entire content of another bloomfilter to this BloomFilter.
-    ///
-    /// The result is the same as adding all elements added to `other` to `self` in the first
-    /// place.
-    ///
-    /// Panics if `k`,`m` or `buildhasher` of the two BloomFilters are not identical.
-    pub fn union(&mut self, other: &Self) {
-        assert_eq!(
-            self.k, other.k,
-            "k must be equal (left={}, right={})",
-            self.k, other.k
-        );
-        assert_eq!(
-            self.bs.len(),
-            other.bs.len(),
-            "m must be equal (left={}, right={})",
-            self.bs.len(),
-            other.bs.len()
-        );
-        assert!(
-            self.buildhasher() == other.buildhasher(),
-            "buildhasher must be equal"
-        );
-
-        self.bs = &self.bs | &other.bs;
-    }
 }
 
-impl<T> Filter<T> for BloomFilter<T>
+impl<T, B> Filter<T> for BloomFilter<T, B>
 where
     T: Hash,
+    B: BuildHasher + Clone + Eq,
 {
     type InsertErr = Infallible;
 
@@ -273,6 +247,35 @@ where
         }
 
         Ok(!was_present)
+    }
+
+    /// Add the entire content of another bloomfilter to this BloomFilter.
+    ///
+    /// The result is the same as adding all elements added to `other` to `self` in the first
+    /// place.
+    ///
+    /// Panics if `k`,`m` or `buildhasher` of the two BloomFilters are not identical.
+    fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
+        assert_eq!(
+            self.k, other.k,
+            "k must be equal (left={}, right={})",
+            self.k, other.k
+        );
+        assert_eq!(
+            self.bs.len(),
+            other.bs.len(),
+            "m must be equal (left={}, right={})",
+            self.bs.len(),
+            other.bs.len()
+        );
+        assert!(
+            self.buildhasher() == other.buildhasher(),
+            "buildhasher must be equal"
+        );
+
+        self.bs = &self.bs | &other.bs;
+
+        Ok(())
     }
 
     fn is_empty(&self) -> bool {
@@ -403,7 +406,7 @@ mod tests {
         assert!(bf2.query(&2));
         assert!(!bf2.query(&3));
 
-        bf1.union(&bf2);
+        bf1.union(&bf2).unwrap();
         assert!(bf1.query(&1));
         assert!(bf1.query(&2));
         assert!(!bf1.query(&3));
@@ -414,7 +417,7 @@ mod tests {
     fn union_panics_k() {
         let mut bf1 = BloomFilter::<u64>::with_params(100, 2);
         let bf2 = BloomFilter::<u64>::with_params(100, 3);
-        bf1.union(&bf2);
+        bf1.union(&bf2).unwrap();
     }
 
     #[test]
@@ -422,7 +425,7 @@ mod tests {
     fn union_panics_m() {
         let mut bf1 = BloomFilter::<u64>::with_params(100, 2);
         let bf2 = BloomFilter::<u64>::with_params(200, 2);
-        bf1.union(&bf2);
+        bf1.union(&bf2).unwrap();
     }
 
     #[test]
@@ -438,7 +441,7 @@ mod tests {
             2,
             BuildHasherSeeded::new(1),
         );
-        bf1.union(&bf2);
+        bf1.union(&bf2).unwrap();
     }
 
     #[test]

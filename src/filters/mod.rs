@@ -35,6 +35,14 @@ where
     /// internal state may have changed though.
     fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr>;
 
+    /// Add all elements from `other` into `self`.
+    ///
+    /// The result is the same as adding all elements added to `other` to `self` in the first
+    /// place.
+    fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr>
+    where
+        Self: Sized;
+
     /// Check if filters is empty, i.e. contains no elements.
     fn is_empty(&self) -> bool;
 

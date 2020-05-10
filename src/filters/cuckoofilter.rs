@@ -483,6 +483,10 @@ where
         Err(CuckooFilterFull)
     }
 
+    fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
+        unimplemented!()
+    }
+
     fn is_empty(&self) -> bool {
         self.n_elements == 0
     }

@@ -21,6 +21,10 @@ where
         Ok(self.insert(obj.clone()))
     }
 
+    fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
+        unimplemented!()
+    }
+
     fn is_empty(&self) -> bool {
         self.is_empty()
     }
