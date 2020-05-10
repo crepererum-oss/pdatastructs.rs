@@ -416,34 +416,13 @@ where
         }
         false
     }
-}
 
-impl<T, R, B> Filter<T> for CuckooFilter<T, R, B>
-where
-    T: Hash,
-    R: Rng,
-    B: BuildHasher + Clone + Eq,
-{
-    type InsertErr = CuckooFilterFull;
-
-    fn clear(&mut self) {
-        self.n_elements = 0;
-        self.table = IntVector::with_fill(self.table.element_bits(), self.table.len(), 0);
-    }
-
-    /// Insert new element into filter.
-    ///
-    /// The method may return an error if it was unable to find a free bucket. This means the
-    /// filter is full and you should not add any additional elements to it. When this happens,
-    /// `len` was not increased and the filter content was not altered.
-    ///
-    /// Inserting the same element multiple times is supported, but keep in mind that after
-    /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`. Also, this function
-    /// will always report `Ok(true)` in case of success, even if the same element is inserted
-    /// twice.
-    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
-        let (mut f, i1, i2) = self.start(obj);
-
+    fn insert_internal(
+        &mut self,
+        mut f: u64,
+        i1: usize,
+        i2: usize,
+    ) -> Result<bool, CuckooFilterFull> {
         if self.write_to_bucket(i1, f) {
             self.n_elements += 1;
             return Ok(true);
@@ -482,9 +461,71 @@ where
         }
         Err(CuckooFilterFull)
     }
+}
+
+impl<T, R, B> Filter<T> for CuckooFilter<T, R, B>
+where
+    T: Hash,
+    R: Rng,
+    B: BuildHasher + Clone + Eq,
+{
+    type InsertErr = CuckooFilterFull;
+
+    fn clear(&mut self) {
+        self.n_elements = 0;
+        self.table = IntVector::with_fill(self.table.element_bits(), self.table.len(), 0);
+    }
+
+    /// Insert new element into filter.
+    ///
+    /// The method may return an error if it was unable to find a free bucket. This means the
+    /// filter is full and you should not add any additional elements to it. When this happens,
+    /// `len` was not increased and the filter content was not altered.
+    ///
+    /// Inserting the same element multiple times is supported, but keep in mind that after
+    /// `n_buckets * 2` times, the filter will return `Err(CuckooFilterFull)`. Also, this function
+    /// will always report `Ok(true)` in case of success, even if the same element is inserted
+    /// twice.
+    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
+        let (f, i1, i2) = self.start(obj);
+        self.insert_internal(f, i1, i2)
+    }
 
     fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
-        unimplemented!()
+        assert_eq!(
+            self.bucketsize, other.bucketsize,
+            "bucketsize must be equal (left={}, right={})",
+            self.bucketsize, other.bucketsize
+        );
+        assert_eq!(
+            self.n_buckets, other.n_buckets,
+            "n_buckets must be equal (left={}, right={})",
+            self.n_buckets, other.n_buckets
+        );
+        assert_eq!(
+            self.l_fingerprint, other.l_fingerprint,
+            "l_fingerprint must be equal (left={}, right={})",
+            self.l_fingerprint, other.l_fingerprint
+        );
+        assert!(
+            self.buildhasher == other.buildhasher,
+            "buildhasher must be equal",
+        );
+
+        let mut i1: usize = 0;
+        for (counter, f) in other.table.iter().enumerate() {
+            // calculate current bucket
+            if (counter > 0) && (counter % other.bucketsize == 0) {
+                i1 += 1;
+            }
+
+            // check if slot is used
+            if f != 0 {
+                let i2 = i1 ^ other.hash(&f);
+                self.insert_internal(f, i1, i2)?;
+            }
+        }
+        Ok(())
     }
 
     fn is_empty(&self) -> bool {
@@ -527,7 +568,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::CuckooFilter;
-    use crate::filters::Filter;
+    use crate::{filters::Filter, hash_utils::BuildHasherSeeded};
     use rand::SeedableRng;
     use rand_chacha::ChaChaRng;
 
@@ -753,5 +794,77 @@ mod tests {
     #[should_panic(expected = "false_positive_rate (1) must be greater than 0 and smaller than 1")]
     fn with_properties_4_panics_false_positive_rate_1() {
         CuckooFilter::<u64, ChaChaRng>::with_properties_4(1., 1000, ChaChaRng::from_seed([0; 32]));
+    }
+
+    #[test]
+    fn union() {
+        let mut cf1 =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+
+        cf1.insert(&13).unwrap();
+        cf1.insert(&42).unwrap();
+
+        cf2.insert(&130).unwrap();
+        cf2.insert(&420).unwrap();
+
+        cf1.union(&cf2).unwrap();
+
+        assert!(cf1.query(&13));
+        assert!(cf1.query(&42));
+        assert!(cf1.query(&130));
+        assert!(cf1.query(&420));
+
+        assert!(!cf2.query(&13));
+        assert!(!cf2.query(&42));
+        assert!(cf2.query(&130));
+        assert!(cf2.query(&420));
+    }
+
+    #[test]
+    #[should_panic(expected = "bucketsize must be equal (left=2, right=3)")]
+    fn union_panics_bucketsize() {
+        let mut cf1 =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 3, 16, 8);
+        cf1.union(&cf2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "n_buckets must be equal (left=16, right=32)")]
+    fn union_panics_n_buckets() {
+        let mut cf1 =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 32, 8);
+        cf1.union(&cf2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "l_fingerprint must be equal (left=8, right=16)")]
+    fn union_panics_l_fingerprint() {
+        let mut cf1 =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 16);
+        cf1.union(&cf2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "buildhasher must be equal")]
+    fn union_panics_buildhasher() {
+        let mut cf1 = CuckooFilter::<u64, ChaChaRng, BuildHasherSeeded>::with_params_and_hash(
+            ChaChaRng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+            BuildHasherSeeded::new(0),
+        );
+        let cf2 = CuckooFilter::with_params_and_hash(
+            ChaChaRng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+            BuildHasherSeeded::new(1),
+        );
+        cf1.union(&cf2).unwrap();
     }
 }
