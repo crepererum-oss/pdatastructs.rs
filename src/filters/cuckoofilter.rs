@@ -416,6 +416,53 @@ where
         }
         false
     }
+
+    fn insert_internal(
+        &mut self,
+        mut f: u64,
+        i1: usize,
+        i2: usize,
+        log: &mut Vec<(usize, u64)>,
+    ) -> Result<bool, CuckooFilterFull> {
+        if self.write_to_bucket(i1, f) {
+            self.n_elements += 1;
+            return Ok(true);
+        }
+        if self.write_to_bucket(i2, f) {
+            self.n_elements += 1;
+            return Ok(false);
+        }
+
+        // cannot write to obvious buckets => relocate
+        let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
+
+        for _ in 0..MAX_NUM_KICKS {
+            let e: usize = self.rng.gen_range(0, self.bucketsize);
+            let offset = i * self.bucketsize;
+            let x = offset + e;
+
+            // swap table[x] and f
+            let tmp = self.table.get(x as u64);
+            log.push((x, tmp));
+            self.table.set(x as u64, f);
+            f = tmp;
+
+            i ^= self.hash(&f);
+            if self.write_to_bucket(i, f) {
+                self.n_elements += 1;
+                return Ok(true);
+            }
+        }
+
+        // no space left => fail
+        Err(CuckooFilterFull)
+    }
+
+    fn restore_state(&mut self, log: &Vec<(usize, u64)>) {
+        for (pos, data) in log.iter().rev().cloned() {
+            self.table.set(pos as u64, data);
+        }
+    }
 }
 
 impl<T, R, B> Filter<T> for CuckooFilter<T, R, B>
@@ -442,45 +489,60 @@ where
     /// will always report `Ok(true)` in case of success, even if the same element is inserted
     /// twice.
     fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
-        let (mut f, i1, i2) = self.start(obj);
-
-        if self.write_to_bucket(i1, f) {
-            self.n_elements += 1;
-            return Ok(true);
-        }
-        if self.write_to_bucket(i2, f) {
-            self.n_elements += 1;
-            return Ok(false);
-        }
-
-        // cannot write to obvious buckets => relocate
+        let (f, i1, i2) = self.start(obj);
         let mut log: Vec<(usize, u64)> = vec![];
-        let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
+        let result = self.insert_internal(f, i1, i2, &mut log);
+        if result.is_err() {
+            self.restore_state(&log);
+        }
+        result
+    }
 
-        for _ in 0..MAX_NUM_KICKS {
-            let e: usize = self.rng.gen_range(0, self.bucketsize);
-            let offset = i * self.bucketsize;
-            let x = offset + e;
+    fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
+        assert_eq!(
+            self.bucketsize, other.bucketsize,
+            "bucketsize must be equal (left={}, right={})",
+            self.bucketsize, other.bucketsize
+        );
+        assert_eq!(
+            self.n_buckets, other.n_buckets,
+            "n_buckets must be equal (left={}, right={})",
+            self.n_buckets, other.n_buckets
+        );
+        assert_eq!(
+            self.l_fingerprint, other.l_fingerprint,
+            "l_fingerprint must be equal (left={}, right={})",
+            self.l_fingerprint, other.l_fingerprint
+        );
+        assert!(
+            self.buildhasher == other.buildhasher,
+            "buildhasher must be equal",
+        );
 
-            // swap table[x] and f
-            let tmp = self.table.get(x as u64);
-            log.push((x, tmp));
-            self.table.set(x as u64, f);
-            f = tmp;
+        let mut log: Vec<(usize, u64)> = vec![];
+        let n_elements_backup = self.n_elements;
+        let mut i1: usize = 0;
+        for (counter, f) in other.table.iter().enumerate() {
+            // calculate current bucket
+            if (counter > 0) && (counter % other.bucketsize == 0) {
+                i1 += 1;
+            }
 
-            i ^= self.hash(&f);
-            if self.write_to_bucket(i, f) {
-                self.n_elements += 1;
-                return Ok(true);
+            // check if slot is used
+            if f != 0 {
+                let i2 = i1 ^ other.hash(&f);
+                let result = self.insert_internal(f, i1, i2, &mut log);
+                match result {
+                    Err(err) => {
+                        self.restore_state(&log);
+                        self.n_elements = n_elements_backup;
+                        return Err(err);
+                    }
+                    Ok(_) => {}
+                }
             }
         }
-
-        // no space left => fail
-        // restore state beforehand
-        for (pos, data) in log.iter().rev().cloned() {
-            self.table.set(pos as u64, data);
-        }
-        Err(CuckooFilterFull)
+        Ok(())
     }
 
     fn is_empty(&self) -> bool {
@@ -523,7 +585,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::CuckooFilter;
-    use crate::filters::Filter;
+    use crate::{filters::Filter, hash_utils::BuildHasherSeeded};
     use rand::SeedableRng;
     use rand_chacha::ChaChaRng;
 
@@ -749,5 +811,108 @@ mod tests {
     #[should_panic(expected = "false_positive_rate (1) must be greater than 0 and smaller than 1")]
     fn with_properties_4_panics_false_positive_rate_1() {
         CuckooFilter::<u64, ChaChaRng>::with_properties_4(1., 1000, ChaChaRng::from_seed([0; 32]));
+    }
+
+    #[test]
+    fn union() {
+        let mut cf1 =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+
+        cf1.insert(&13).unwrap();
+        cf1.insert(&42).unwrap();
+
+        cf2.insert(&130).unwrap();
+        cf2.insert(&420).unwrap();
+
+        cf1.union(&cf2).unwrap();
+
+        assert!(cf1.query(&13));
+        assert!(cf1.query(&42));
+        assert!(cf1.query(&130));
+        assert!(cf1.query(&420));
+
+        assert!(!cf2.query(&13));
+        assert!(!cf2.query(&42));
+        assert!(cf2.query(&130));
+        assert!(cf2.query(&420));
+    }
+
+    #[test]
+    #[should_panic(expected = "bucketsize must be equal (left=2, right=3)")]
+    fn union_panics_bucketsize() {
+        let mut cf1 =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 3, 16, 8);
+        cf1.union(&cf2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "n_buckets must be equal (left=16, right=32)")]
+    fn union_panics_n_buckets() {
+        let mut cf1 =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 32, 8);
+        cf1.union(&cf2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "l_fingerprint must be equal (left=8, right=16)")]
+    fn union_panics_l_fingerprint() {
+        let mut cf1 =
+            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 16);
+        cf1.union(&cf2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "buildhasher must be equal")]
+    fn union_panics_buildhasher() {
+        let mut cf1 = CuckooFilter::<u64, ChaChaRng, BuildHasherSeeded>::with_params_and_hash(
+            ChaChaRng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+            BuildHasherSeeded::new(0),
+        );
+        let cf2 = CuckooFilter::with_params_and_hash(
+            ChaChaRng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+            BuildHasherSeeded::new(1),
+        );
+        cf1.union(&cf2).unwrap();
+    }
+
+    #[test]
+    fn union_full() {
+        let mut cf1 =
+            CuckooFilter::<i64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf2 =
+            CuckooFilter::<i64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+
+        // fill up cf1
+        let mut obj = 0;
+        loop {
+            if cf1.insert(&obj).is_err() {
+                break;
+            }
+            obj += 1;
+        }
+        assert!(cf1.query(&0));
+
+        // add some payload to cf2
+        let n_cf2 = 10;
+        for i in 0..n_cf2 {
+            cf2.insert(&-i).unwrap();
+        }
+        assert_eq!(cf2.len(), n_cf2 as usize);
+        assert!(!cf2.query(&1));
+
+        // union with failure, state must not be altered
+        assert!(cf2.union(&cf1).is_err());
+        assert_eq!(cf2.len(), n_cf2 as usize);
+        assert!(!cf2.query(&1));
     }
 }

@@ -14,6 +14,31 @@ use crate::helpers::all_zero_intvector;
 #[derive(Debug)]
 pub struct QuotientFilterFull;
 
+/// Internal results for scanning the quotientfilter.
+struct ScanResult {
+    /// Indicates if the requested element is already present in the filter.
+    present: bool,
+
+    /// Position where the search ended.
+    position: usize,
+
+    /// Start position of run where the search ended.
+    start_of_run: Option<usize>,
+}
+
+impl ScanResult {
+    fn has_run(&self) -> bool {
+        self.start_of_run.is_some()
+    }
+
+    fn at_start_of_run(&self) -> bool {
+        match self.start_of_run {
+            Some(start) => start == self.position,
+            None => false,
+        }
+    }
+}
+
 /// A QuotientFilter is a set-like data structure, that keeps track of elements it has seen without
 /// the need to store them. Looking up values has a certain false positive rate, but a false
 /// negative rate of 0%.
@@ -337,17 +362,16 @@ where
         }
     }
 
-    fn scan(
-        &self,
-        quotient: usize,
-        remainder: usize,
-        on_insert: bool,
-    ) -> (bool, usize, bool, usize) {
+    fn scan(&self, quotient: usize, remainder: usize, on_insert: bool) -> ScanResult {
         let run_exists = self.is_occupied[quotient];
         if (!run_exists) && (!on_insert) {
             // fast-path for query, since we don't need to find the correct position for the
             // insertion process
-            return (run_exists, quotient, run_exists, quotient);
+            return ScanResult {
+                present: false,
+                position: quotient,
+                start_of_run: None,
+            };
         }
 
         // walk back to find the beginning of the cluster
@@ -380,12 +404,16 @@ where
         // `s` now points to the first remainder in bucket at `quotient`
 
         // search of remainder within the run
-        let start_of_run = s;
         if run_exists {
+            let start_of_run = s;
             loop {
                 let r = self.remainders.get(s as u64);
                 if r == remainder {
-                    return (run_exists, s, run_exists, start_of_run);
+                    return ScanResult {
+                        present: true,
+                        position: s,
+                        start_of_run: Some(start_of_run),
+                    };
                 }
                 if r > remainder {
                     // remainders are sorted within run
@@ -396,8 +424,18 @@ where
                     break;
                 }
             }
+            ScanResult {
+                present: false,
+                position: s,
+                start_of_run: Some(start_of_run),
+            }
+        } else {
+            ScanResult {
+                present: false,
+                position: s,
+                start_of_run: None,
+            }
         }
-        (false, s, run_exists, start_of_run)
     }
 }
 
@@ -419,11 +457,10 @@ where
 
     fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
         let (quotient, remainder) = self.calc_quotient_remainder(obj);
-        let (present, mut position, run_exists, start_of_run) =
-            self.scan(quotient, remainder, true);
+        let scan_result = self.scan(quotient, remainder, true);
 
         // early exit if the element is already present
-        if present {
+        if scan_result.present {
             return Ok(false);
         }
         // we need to insert the element into the filter
@@ -435,23 +472,26 @@ where
 
         // set up swap chain
         let mut current_is_continuation =
-            self.is_continuation[position] || (run_exists && (position == start_of_run));
-        let mut current_remainder = self.remainders.get(position as u64);
-        let mut current_used = self.is_occupied[position] || self.is_shifted[position];
+            self.is_continuation[scan_result.position] || scan_result.at_start_of_run();
+        let mut current_remainder = self.remainders.get(scan_result.position as u64);
+        let mut current_used =
+            self.is_occupied[scan_result.position] || self.is_shifted[scan_result.position];
 
         // set current state
-        self.remainders.set(position as u64, remainder);
-        if position != start_of_run {
+        self.remainders.set(scan_result.position as u64, remainder);
+        // if scan_result.position != scan_result.start_of_run.unwrap_or(scan_result.position) {
+        if scan_result.has_run() && (!scan_result.at_start_of_run()) {
             // might be an append operation, ensure is_continuation and is_shifted are set
-            self.is_continuation.set(position, true);
+            self.is_continuation.set(scan_result.position, true);
         }
-        if position != quotient {
+        if scan_result.position != quotient {
             // not at canonical slot
-            self.is_shifted.set(position, true);
+            self.is_shifted.set(scan_result.position, true);
         }
 
         // run swap chain until nothing to do
-        let start = position;
+        let start = scan_result.position;
+        let mut position = scan_result.position;
         while current_used {
             self.incr(&mut position);
             let next_is_continuation = self.is_continuation[position];
@@ -479,6 +519,10 @@ where
         Ok(true)
     }
 
+    fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
+        unimplemented!()
+    }
+
     fn is_empty(&self) -> bool {
         self.n_elements == 0
     }
@@ -489,9 +533,7 @@ where
 
     fn query(&self, obj: &T) -> bool {
         let (quotient, remainder) = self.calc_quotient_remainder(obj);
-        let (present, _position, _run_exists, _start_of_run) =
-            self.scan(quotient, remainder, false);
-        present
+        self.scan(quotient, remainder, false).present
     }
 }
 
