@@ -422,6 +422,7 @@ where
         mut f: u64,
         i1: usize,
         i2: usize,
+        log: &mut Vec<(usize, u64)>,
     ) -> Result<bool, CuckooFilterFull> {
         if self.write_to_bucket(i1, f) {
             self.n_elements += 1;
@@ -433,7 +434,6 @@ where
         }
 
         // cannot write to obvious buckets => relocate
-        let mut log: Vec<(usize, u64)> = vec![];
         let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
 
         for _ in 0..MAX_NUM_KICKS {
@@ -455,11 +455,13 @@ where
         }
 
         // no space left => fail
-        // restore state beforehand
+        Err(CuckooFilterFull)
+    }
+
+    fn restore_state(&mut self, log: &Vec<(usize, u64)>) {
         for (pos, data) in log.iter().rev().cloned() {
             self.table.set(pos as u64, data);
         }
-        Err(CuckooFilterFull)
     }
 }
 
@@ -488,7 +490,12 @@ where
     /// twice.
     fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
         let (f, i1, i2) = self.start(obj);
-        self.insert_internal(f, i1, i2)
+        let mut log: Vec<(usize, u64)> = vec![];
+        let result = self.insert_internal(f, i1, i2, &mut log);
+        if result.is_err() {
+            self.restore_state(&log);
+        }
+        result
     }
 
     fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
@@ -512,6 +519,8 @@ where
             "buildhasher must be equal",
         );
 
+        let mut log: Vec<(usize, u64)> = vec![];
+        let n_elements_backup = self.n_elements;
         let mut i1: usize = 0;
         for (counter, f) in other.table.iter().enumerate() {
             // calculate current bucket
@@ -522,7 +531,15 @@ where
             // check if slot is used
             if f != 0 {
                 let i2 = i1 ^ other.hash(&f);
-                self.insert_internal(f, i1, i2)?;
+                let result = self.insert_internal(f, i1, i2, &mut log);
+                match result {
+                    Err(err) => {
+                        self.restore_state(&log);
+                        self.n_elements = n_elements_backup;
+                        return Err(err);
+                    }
+                    Ok(_) => {}
+                }
             }
         }
         Ok(())
@@ -866,5 +883,36 @@ mod tests {
             BuildHasherSeeded::new(1),
         );
         cf1.union(&cf2).unwrap();
+    }
+
+    #[test]
+    fn union_full() {
+        let mut cf1 =
+            CuckooFilter::<i64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf2 =
+            CuckooFilter::<i64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+
+        // fill up cf1
+        let mut obj = 0;
+        loop {
+            if cf1.insert(&obj).is_err() {
+                break;
+            }
+            obj += 1;
+        }
+        assert!(cf1.query(&0));
+
+        // add some payload to cf2
+        let n_cf2 = 10;
+        for i in 0..n_cf2 {
+            cf2.insert(&-i).unwrap();
+        }
+        assert_eq!(cf2.len(), n_cf2 as usize);
+        assert!(!cf2.query(&1));
+
+        // union with failure, state must not be altered
+        assert!(cf2.union(&cf1).is_err());
+        assert_eq!(cf2.len(), n_cf2 as usize);
+        assert!(!cf2.query(&1));
     }
 }
