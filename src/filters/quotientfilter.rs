@@ -1,5 +1,6 @@
 //! QuotientFilter implementation.
 use std::collections::hash_map::DefaultHasher;
+use std::collections::VecDeque;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -437,26 +438,12 @@ where
             }
         }
     }
-}
 
-impl<T, B> Filter<T> for QuotientFilter<T, B>
-where
-    T: Hash,
-    B: BuildHasher + Clone + Eq,
-{
-    type InsertErr = QuotientFilterFull;
-
-    fn clear(&mut self) {
-        self.is_occupied.clear();
-        self.is_continuation.clear();
-        self.is_shifted.clear();
-        self.remainders =
-            IntVector::with_fill(self.remainders.element_bits(), self.remainders.len(), 0);
-        self.n_elements = 0;
-    }
-
-    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
-        let (quotient, remainder) = self.calc_quotient_remainder(obj);
+    fn insert_internal(
+        &mut self,
+        quotient: usize,
+        remainder: usize,
+    ) -> Result<bool, QuotientFilterFull> {
         let scan_result = self.scan(quotient, remainder, true);
 
         // early exit if the element is already present
@@ -518,9 +505,101 @@ where
         self.n_elements += 1;
         Ok(true)
     }
+}
+
+impl<T, B> Filter<T> for QuotientFilter<T, B>
+where
+    T: Hash,
+    B: BuildHasher + Clone + Eq,
+{
+    type InsertErr = QuotientFilterFull;
+
+    fn clear(&mut self) {
+        self.is_occupied.clear();
+        self.is_continuation.clear();
+        self.is_shifted.clear();
+        self.remainders =
+            IntVector::with_fill(self.remainders.element_bits(), self.remainders.len(), 0);
+        self.n_elements = 0;
+    }
+
+    fn insert(&mut self, obj: &T) -> Result<bool, Self::InsertErr> {
+        let (quotient, remainder) = self.calc_quotient_remainder(obj);
+        self.insert_internal(quotient, remainder)
+    }
 
     fn union(&mut self, other: &Self) -> Result<(), Self::InsertErr> {
-        unimplemented!()
+        assert_eq!(
+            self.bits_quotient, other.bits_quotient,
+            "bits_quotient must be equal (left={}, right={})",
+            self.bits_quotient, other.bits_quotient
+        );
+        assert_eq!(
+            self.bits_remainder(),
+            other.bits_remainder(),
+            "bits_remainder must be equal (left={}, right={})",
+            self.bits_remainder(),
+            other.bits_remainder()
+        );
+        assert!(
+            self.buildhasher == other.buildhasher,
+            "buildhasher must be equal",
+        );
+
+        // create backup of the entire state
+        let is_occupied_backup = self.is_occupied.clone();
+        let is_continuation_backup = self.is_continuation.clone();
+        let is_shifted_backup = self.is_shifted.clone();
+        let remainders_backup = self.remainders.clone();
+        let n_elements_backup = self.n_elements;
+
+        for i in 0..other.is_occupied.len() {
+            if other.is_occupied[i] && !other.is_shifted[i] {
+                // found cluster start
+                let mut quotient = i;
+                match self.insert_internal(quotient, other.remainders.get(i as u64)) {
+                    Err(err) => {
+                        self.is_occupied = is_occupied_backup;
+                        self.is_continuation = is_continuation_backup;
+                        self.is_shifted = is_shifted_backup;
+                        self.remainders = remainders_backup;
+                        self.n_elements = n_elements_backup;
+                        return Err(err);
+                    }
+                    Ok(_) => {}
+                }
+
+                let mut next_quotients = VecDeque::new();
+
+                let mut j = i;
+                self.incr(&mut j);
+                while (j != i) && other.is_shifted[j] {
+                    if other.is_occupied[j] {
+                        // this cluster contains another run, so remember the quotient
+                        next_quotients.push_back(j);
+                    }
+                    if !other.is_continuation[j] {
+                        // this is the start of another run, get the quotient
+                        quotient = next_quotients.pop_front().unwrap();
+                    }
+                    match self.insert_internal(quotient, other.remainders.get(j as u64)) {
+                        Err(err) => {
+                            self.is_occupied = is_occupied_backup;
+                            self.is_continuation = is_continuation_backup;
+                            self.is_shifted = is_shifted_backup;
+                            self.remainders = remainders_backup;
+                            self.n_elements = n_elements_backup;
+                            return Err(err);
+                        }
+                        Ok(_) => {}
+                    }
+
+                    self.incr(&mut j)
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn is_empty(&self) -> bool {
@@ -541,6 +620,7 @@ where
 mod tests {
     use super::QuotientFilter;
     use crate::filters::Filter;
+    use crate::hash_utils::BuildHasherSeeded;
 
     #[test]
     #[should_panic(expected = "bits_quotient (0) must be greater than 0")]
@@ -662,5 +742,86 @@ mod tests {
         assert_eq!(qf2.len(), 2);
         assert!(qf2.query(&13));
         assert!(qf2.query(&42));
+    }
+
+    #[test]
+    fn union() {
+        let mut qf1 = QuotientFilter::with_params(3, 16);
+        let mut qf2 = QuotientFilter::with_params(3, 16);
+
+        qf1.insert(&13).unwrap();
+        qf1.insert(&42).unwrap();
+
+        qf2.insert(&130).unwrap();
+        qf2.insert(&420).unwrap();
+
+        qf1.union(&qf2).unwrap();
+
+        assert!(qf1.query(&13));
+        assert!(qf1.query(&42));
+        assert!(qf1.query(&130));
+        assert!(qf1.query(&420));
+
+        assert!(!qf2.query(&13));
+        assert!(!qf2.query(&42));
+        assert!(qf2.query(&130));
+        assert!(qf2.query(&420));
+    }
+
+    #[test]
+    #[should_panic(expected = "bits_quotient must be equal (left=3, right=4)")]
+    fn union_panics_bits_quotient() {
+        let mut qf1 = QuotientFilter::<i32>::with_params(3, 16);
+        let qf2 = QuotientFilter::with_params(4, 16);
+        qf1.union(&qf2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "bits_remainder must be equal (left=16, right=32)")]
+    fn union_panics_bits_remainder() {
+        let mut qf1 = QuotientFilter::<i32>::with_params(3, 16);
+        let qf2 = QuotientFilter::with_params(3, 32);
+        qf1.union(&qf2).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "buildhasher must be equal")]
+    fn union_panics_buildhasher() {
+        let mut qf1 = QuotientFilter::<i32, BuildHasherSeeded>::with_params_and_hash(
+            3,
+            16,
+            BuildHasherSeeded::new(0),
+        );
+        let qf2 = QuotientFilter::with_params_and_hash(3, 16, BuildHasherSeeded::new(1));
+        qf1.union(&qf2).unwrap();
+    }
+
+    #[test]
+    fn union_full() {
+        let mut qf1 = QuotientFilter::with_params(3, 16);
+        let mut qf2 = QuotientFilter::with_params(3, 16);
+
+        // fill up cf1
+        let mut obj = 0;
+        loop {
+            if qf1.insert(&obj).is_err() {
+                break;
+            }
+            obj += 1;
+        }
+        assert!(qf1.query(&0));
+
+        // add some payload to cf2
+        let n_qf2 = 3;
+        for i in 0..n_qf2 {
+            qf2.insert(&-i).unwrap();
+        }
+        assert_eq!(qf2.len(), n_qf2 as usize);
+        assert!(!qf2.query(&1));
+
+        // union with failure, state must not be altered
+        assert!(qf2.union(&qf1).is_err());
+        assert_eq!(qf2.len(), n_qf2 as usize);
+        assert!(!qf2.query(&1));
     }
 }
