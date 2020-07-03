@@ -1,5 +1,4 @@
 //! HyperLogLog implementation.
-use bytecount;
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
