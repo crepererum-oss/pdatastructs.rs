@@ -458,7 +458,7 @@ where
         Err(CuckooFilterFull)
     }
 
-    fn restore_state(&mut self, log: &Vec<(usize, u64)>) {
+    fn restore_state(&mut self, log: &[(usize, u64)]) {
         for (pos, data) in log.iter().rev().cloned() {
             self.table.set(pos as u64, data);
         }
@@ -531,14 +531,10 @@ where
             // check if slot is used
             if f != 0 {
                 let i2 = i1 ^ other.hash(&f);
-                let result = self.insert_internal(f, i1, i2, &mut log);
-                match result {
-                    Err(err) => {
-                        self.restore_state(&log);
-                        self.n_elements = n_elements_backup;
-                        return Err(err);
-                    }
-                    Ok(_) => {}
+                if let Err(err) = self.insert_internal(f, i1, i2, &mut log) {
+                    self.restore_state(&log);
+                    self.n_elements = n_elements_backup;
+                    return Err(err);
                 }
             }
         }

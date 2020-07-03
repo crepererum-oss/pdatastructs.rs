@@ -557,16 +557,13 @@ where
             if other.is_occupied[i] && !other.is_shifted[i] {
                 // found cluster start
                 let mut quotient = i;
-                match self.insert_internal(quotient, other.remainders.get(i as u64)) {
-                    Err(err) => {
-                        self.is_occupied = is_occupied_backup;
-                        self.is_continuation = is_continuation_backup;
-                        self.is_shifted = is_shifted_backup;
-                        self.remainders = remainders_backup;
-                        self.n_elements = n_elements_backup;
-                        return Err(err);
-                    }
-                    Ok(_) => {}
+                if let Err(err) = self.insert_internal(quotient, other.remainders.get(i as u64)) {
+                    self.is_occupied = is_occupied_backup;
+                    self.is_continuation = is_continuation_backup;
+                    self.is_shifted = is_shifted_backup;
+                    self.remainders = remainders_backup;
+                    self.n_elements = n_elements_backup;
+                    return Err(err);
                 }
 
                 let mut next_quotients = VecDeque::new();
@@ -582,16 +579,14 @@ where
                         // this is the start of another run, get the quotient
                         quotient = next_quotients.pop_front().unwrap();
                     }
-                    match self.insert_internal(quotient, other.remainders.get(j as u64)) {
-                        Err(err) => {
-                            self.is_occupied = is_occupied_backup;
-                            self.is_continuation = is_continuation_backup;
-                            self.is_shifted = is_shifted_backup;
-                            self.remainders = remainders_backup;
-                            self.n_elements = n_elements_backup;
-                            return Err(err);
-                        }
-                        Ok(_) => {}
+                    if let Err(err) = self.insert_internal(quotient, other.remainders.get(j as u64))
+                    {
+                        self.is_occupied = is_occupied_backup;
+                        self.is_continuation = is_continuation_backup;
+                        self.is_shifted = is_shifted_backup;
+                        self.remainders = remainders_backup;
+                        self.n_elements = n_elements_backup;
+                        return Err(err);
                     }
 
                     self.incr(&mut j)
