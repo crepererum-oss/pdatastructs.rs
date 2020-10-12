@@ -1,6 +1,5 @@
 #![allow(clippy::unreadable_literal)]
 
-
 pub(crate) const THRESHOLD_DATA_OFFSET: usize = 4;
 pub(crate) const THRESHOLD_DATA_VEC: &[usize] = &[
     10,     // b = 4
