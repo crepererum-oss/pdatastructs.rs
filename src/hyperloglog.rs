@@ -182,7 +182,7 @@ where
                     // no right index
                     (Some(i - 1), None)
                 } else {
-                    (Some(i), Some(i + 1))
+                    (Some(i - 1), Some(i))
                 }
             }
         }
@@ -675,7 +675,7 @@ mod tests {
 
         assert_eq!(
             HyperLogLog::<u32>::neighbor_search_startpoints(lookup_array, 20.),
-            (Some(15), Some(16))
+            (Some(14), Some(15))
         );
 
         assert_eq!(
