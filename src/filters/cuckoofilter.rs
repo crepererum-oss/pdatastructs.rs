@@ -136,7 +136,7 @@ pub struct CuckooFilterFull;
 #[derive(Clone)]
 pub struct CuckooFilter<T, R, B = BuildHasherDefault<DefaultHasher>>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
@@ -152,7 +152,7 @@ where
 
 impl<T, R> CuckooFilter<T, R>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     R: Rng,
 {
     /// Create new CuckooFilter with:
@@ -191,7 +191,7 @@ where
 
 impl<T, R, B> CuckooFilter<T, R, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
@@ -377,7 +377,7 @@ where
 
     fn hash<U>(&self, obj: &U) -> usize
     where
-        U: Hash,
+        U: Hash + ?Sized,
     {
         let mut hasher = self.buildhasher.build_hasher();
         hasher.write_usize(1); // IV
@@ -467,7 +467,7 @@ where
 
 impl<T, R, B> Filter<T> for CuckooFilter<T, R, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
@@ -565,7 +565,7 @@ where
 
 impl<T, R, B> fmt::Debug for CuckooFilter<T, R, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
@@ -910,5 +910,15 @@ mod tests {
         assert!(cf2.union(&cf1).is_err());
         assert_eq!(cf2.len(), n_cf2 as usize);
         assert!(!cf2.query(&1));
+    }
+
+    #[test]
+    fn insert_unsized() {
+        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        assert!(cf.insert("test1").unwrap());
+        assert!(!cf.is_empty());
+        assert_eq!(cf.len(), 1);
+        assert!(cf.query("test1"));
+        assert!(!cf.query("test2"));
     }
 }
