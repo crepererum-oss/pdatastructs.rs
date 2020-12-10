@@ -107,7 +107,7 @@ where
     /// used.
     pub fn iter_for<T>(&self, obj: &T) -> HashIter<B>
     where
-        T: Hash,
+        T: Hash + ?Sized,
     {
         let h1 = self.h_i(&obj, 0) % (self.m as u64);
         let h2 = self.h_i(&obj, 1) % (self.m as u64);
@@ -128,7 +128,7 @@ where
     /// Helper to calculate h_0 and h_1.
     fn h_i<T>(&self, obj: &T, i: usize) -> u64
     where
-        T: Hash,
+        T: Hash + ?Sized,
     {
         let mut hasher = self.buildhasher.build_hasher();
         hasher.write_usize(i);

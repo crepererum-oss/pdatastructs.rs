@@ -15,7 +15,7 @@ use std::hash::Hash;
 /// This kind of lookup is also referred to as Approximate Membership Queries (AMQs).
 pub trait Filter<T>
 where
-    T: Hash,
+    T: Hash + ?Sized,
 {
     /// Error type that may occur during insertion.
     type InsertErr: Debug;

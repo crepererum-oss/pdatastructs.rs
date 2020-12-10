@@ -141,7 +141,7 @@ use crate::hash_utils::HashIterBuilder;
 /// - ["Space/Time Trade-offs in Hash Coding with Allowable Errors", Burton H. Bloom, 1970](http://dmod.eu/deca/ft_gateway.cfm.pdf)
 /// - [Wikipedia: Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter)
 #[derive(Clone)]
-pub struct BloomFilter<T, B = BuildHasherDefault<DefaultHasher>>
+pub struct BloomFilter<T: ?Sized, B = BuildHasherDefault<DefaultHasher>>
 where
     T: Hash,
     B: BuildHasher + Clone + Eq,
@@ -154,7 +154,7 @@ where
 
 impl<T> BloomFilter<T>
 where
-    T: Hash,
+    T: Hash + ?Sized,
 {
     /// Create new, empty BloomFilter with internal parameters.
     ///
@@ -180,7 +180,7 @@ where
 
 impl<T, B> BloomFilter<T, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     B: BuildHasher + Clone + Eq,
 {
     /// Same as `with_params` but with specific `BuildHasher`.
@@ -227,7 +227,7 @@ where
 
 impl<T, B> Filter<T> for BloomFilter<T, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     B: BuildHasher + Clone + Eq,
 {
     type InsertErr = Infallible;
@@ -302,7 +302,7 @@ where
 
 impl<T> fmt::Debug for BloomFilter<T>
 where
-    T: Hash,
+    T: Hash + ?Sized,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "BloomFilter {{ m: {}, k: {} }}", self.bs.len(), self.k)
@@ -498,5 +498,14 @@ mod tests {
         assert!(bf.query(&1));
         assert!(bf.query(&2));
         assert!(!bf.query(&3));
+    }
+
+    #[test]
+    fn insert_unsized() {
+        let mut bf = BloomFilter::with_params(100, 2);
+
+        assert!(bf.insert("test1").unwrap());
+        assert!(bf.query("test1"));
+        assert!(!bf.query("test2"));
     }
 }

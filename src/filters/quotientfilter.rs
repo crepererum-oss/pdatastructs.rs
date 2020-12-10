@@ -241,7 +241,7 @@ impl ScanResult {
 #[derive(Clone, Debug)]
 pub struct QuotientFilter<T, B = BuildHasherDefault<DefaultHasher>>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     B: BuildHasher + Clone + Eq,
 {
     is_occupied: FixedBitSet,
@@ -256,7 +256,7 @@ where
 
 impl<T> QuotientFilter<T>
 where
-    T: Hash,
+    T: Hash + ?Sized,
 {
     /// Create new quotient filter with:
     ///
@@ -274,7 +274,7 @@ where
 
 impl<T, B> QuotientFilter<T, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     B: BuildHasher + Clone + Eq,
 {
     /// Create new quotient filter with:
@@ -509,7 +509,7 @@ where
 
 impl<T, B> Filter<T> for QuotientFilter<T, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     B: BuildHasher + Clone + Eq,
 {
     type InsertErr = QuotientFilterFull;
@@ -818,5 +818,15 @@ mod tests {
         assert!(qf2.union(&qf1).is_err());
         assert_eq!(qf2.len(), n_qf2 as usize);
         assert!(!qf2.query(&1));
+    }
+
+    #[test]
+    fn insert_unsized() {
+        let mut qf = QuotientFilter::with_params(3, 16);
+        assert!(qf.insert("test1").unwrap());
+        assert!(!qf.is_empty());
+        assert_eq!(qf.len(), 1);
+        assert!(qf.query("test1"));
+        assert!(!qf.query("test2"));
     }
 }
