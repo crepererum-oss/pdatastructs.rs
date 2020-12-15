@@ -28,7 +28,7 @@ features = ["runtime-dispatch-simd"]
 
 [dev-dependencies]
 criterion = "0.3"
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 rand_distr = "0.3"
 
 [[bench]]
