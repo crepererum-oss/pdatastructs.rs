@@ -437,7 +437,7 @@ where
         let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
 
         for _ in 0..MAX_NUM_KICKS {
-            let e: usize = self.rng.gen_range(0, self.bucketsize);
+            let e: usize = self.rng.gen_range(0..self.bucketsize);
             let offset = i * self.bucketsize;
             let x = offset + e;
 

@@ -112,18 +112,18 @@ where
             self.reservoir.push(obj)
         } else if self.i < t {
             // normal reservoir sampling
-            let j: usize = self.rng.gen_range(0, self.i);
+            let j: usize = self.rng.gen_range(0..self.i);
             if j < self.k {
                 self.reservoir[j] = obj;
             }
         } else if self.i >= self.skip_until {
             // fast skipping approximation
-            let j: usize = self.rng.gen_range(0, self.k);
+            let j: usize = self.rng.gen_range(0..self.k);
             self.reservoir[j] = obj;
 
             // calculate next skip
             let p = (self.k as f64) / ((self.i + 1) as f64);
-            let u = 1f64 - self.rng.gen_range(0., 1.); // (0.0, 1.0]
+            let u = 1f64 - self.rng.gen_range((0.)..(1.)); // (0.0, 1.0]
             let g = (u.ln() / (1. - p).ln()).floor() as usize;
             self.skip_until = self.i + g;
         }

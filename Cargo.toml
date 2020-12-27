@@ -19,7 +19,7 @@ edition = "2018"
 [dependencies]
 fixedbitset = "0.3"
 num-traits = "^0.2.4"
-rand = "0.7"
+rand = "0.8"
 succinct = "^0.5"
 
 [dependencies.bytecount]
@@ -28,8 +28,8 @@ features = ["runtime-dispatch-simd"]
 
 [dev-dependencies]
 criterion = "0.3"
-rand_chacha = "0.2"
-rand_distr = "0.3"
+rand_chacha = "0.3"
+rand_distr = "0.4"
 
 [[bench]]
 name = "filters"
