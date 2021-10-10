@@ -193,10 +193,10 @@ where
         let (mut idx_left, mut idx_right) = Self::neighbor_search_startpoints(lookup_array, e);
 
         // collect k nearest neighbors
-        let k = 6;
-        assert!(lookup_array.len() >= k);
-        let mut neighbors = Vec::with_capacity(k);
-        for _ in 0..k {
+        const K: usize = 6;
+        assert!(lookup_array.len() >= K);
+        let mut neighbors = [0; K];
+        for i in 0..K {
             let (right_instead_left, idx) = match (idx_left, idx_right) {
                 (Some(i_left), Some(i_right)) => {
                     // 2 candidates, find better one
@@ -218,7 +218,7 @@ where
                 }
                 _ => panic!("neighborhood search failed, this is bug!"),
             };
-            neighbors.push(idx);
+            neighbors[i] = idx;
             if right_instead_left {
                 idx_right = if idx < lookup_array.len() - 1 {
                     Some(idx + 1)
@@ -232,7 +232,7 @@ where
 
         // calculate mean of neighbors
         let bias_data = BIAS_DATA_VEC[self.b - BIAS_DATA_OFFSET];
-        neighbors.iter().map(|&i| bias_data[i]).sum::<f64>() / (k as f64)
+        neighbors.iter().map(|&i| bias_data[i]).sum::<f64>() / (K as f64)
     }
 
     fn linear_counting(&self, v: usize) -> f64 {
