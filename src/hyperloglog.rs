@@ -195,7 +195,7 @@ where
         // collect k nearest neighbors
         let k = 6;
         assert!(lookup_array.len() >= k);
-        let mut neighbors = vec![];
+        let mut neighbors = Vec::with_capacity(k);
         for _ in 0..k {
             let (right_instead_left, idx) = match (idx_left, idx_right) {
                 (Some(i_left), Some(i_right)) => {
