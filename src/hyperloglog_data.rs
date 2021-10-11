@@ -4016,7 +4016,7 @@ pub(crate) const BIAS_DATA_VEC: &[&[f64]] = &[
     ],
 ];
 
-// POW2MINX(X) = 2 ^ -x
+/// `POW2MINX(X) = 2 ^ -x`
 pub(crate) const POW2MINX: [f64; 256] = [
     1.0,
     0.5,
