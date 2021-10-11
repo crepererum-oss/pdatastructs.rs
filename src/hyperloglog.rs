@@ -6,7 +6,7 @@ use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::marker::PhantomData;
 
 use crate::hyperloglog_data::{
-    BIAS_DATA_OFFSET, BIAS_DATA_VEC, RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC,
+    BIAS_DATA_OFFSET, BIAS_DATA_VEC, POW2MINX, RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC,
     THRESHOLD_DATA_OFFSET, THRESHOLD_DATA_VEC,
 };
 
@@ -253,7 +253,7 @@ where
             / self
                 .registers
                 .iter()
-                .map(|&x| 2f64.powi(-(i32::from(x))))
+                .map(|&x| POW2MINX[x as usize])
                 .sum::<f64>();
 
         let e = self.am() * m * m * z;
