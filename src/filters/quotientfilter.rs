@@ -3,7 +3,6 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::VecDeque;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::marker::PhantomData;
-use std::mem::size_of;
 
 use fixedbitset::FixedBitSet;
 use succinct::{IntVec, IntVecMut, IntVector};
@@ -290,10 +289,10 @@ where
         buildhasher: B,
     ) -> Self {
         assert!(
-            (bits_remainder > 0) && (bits_remainder <= size_of::<usize>() * 8),
+            (bits_remainder > 0) && (bits_remainder <= (usize::BITS as usize)),
             "bits_remainder ({}) must be greater than 0 and smaller or equal than {}",
             bits_remainder,
-            size_of::<usize>() * 8,
+            usize::BITS,
         );
         assert!(
             bits_quotient > 0,

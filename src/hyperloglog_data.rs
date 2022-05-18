@@ -4278,5 +4278,5 @@ pub(crate) const POW2MINX: [f64; 256] = [
 
 #[test]
 fn test_pow2minx() {
-    (0..256).for_each(|x| assert_eq!(POW2MINX[x as usize], 2f64.powi(-(i32::from(x)))))
+    (0..256).for_each(|x| assert_eq!(POW2MINX[x as usize], 2f64.powi(-x)))
 }

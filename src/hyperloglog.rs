@@ -102,12 +102,12 @@ where
     /// Same as `new` but with a specific `BuildHasher`.
     pub fn with_hash(b: usize, buildhasher: B) -> Self {
         assert!(
-            (b >= 4) & (b <= 18),
+            (4..=18).contains(&b),
             "b ({}) must be larger or equal than 4 and smaller or equal than 18",
             b
         );
 
-        let m = (1 as usize) << b;
+        let m = 1_usize << b;
         let registers = vec![0; m];
         Self {
             registers,
@@ -196,7 +196,7 @@ where
         const K: usize = 6;
         assert!(lookup_array.len() >= K);
         let mut neighbors = [0; K];
-        for i in 0..K {
+        for neighbor in &mut neighbors {
             let (right_instead_left, idx) = match (idx_left, idx_right) {
                 (Some(i_left), Some(i_right)) => {
                     // 2 candidates, find better one
@@ -218,7 +218,7 @@ where
                 }
                 _ => panic!("neighborhood search failed, this is bug!"),
             };
-            neighbors[i] = idx;
+            *neighbor = idx;
             if right_instead_left {
                 idx_right = if idx < lookup_array.len() - 1 {
                     Some(idx + 1)
