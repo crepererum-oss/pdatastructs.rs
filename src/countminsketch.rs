@@ -216,7 +216,7 @@ where
     ///
     /// Returns guessed count after addition.
     pub fn add(&mut self, obj: &T) -> C {
-        self.add_n(&obj, &C::one())
+        self.add_n(obj, &C::one())
     }
 
     /// Add `n` to the counter of the given element.

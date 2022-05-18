@@ -414,7 +414,7 @@ where
 
     #[inline(always)]
     fn interpolate(a: f64, b: f64, t: f64) -> f64 {
-        debug_assert!((t >= 0.) && (t <= 1.));
+        debug_assert!((0. ..=1.).contains(&t));
         debug_assert!(a <= b);
         t * b + (1. - t) * a
     }
@@ -853,7 +853,7 @@ where
     ///
     /// Panics if the quantile is not in range `[0, 1]`.
     pub fn quantile(&self, q: f64) -> f64 {
-        assert!((q >= 0.) && (q <= 1.), "q ({}) must be in [0, 1]", q);
+        assert!((0. ..=1.).contains(&q), "q ({}) must be in [0, 1]", q);
 
         // apply compression if required
         self.inner.borrow_mut().merge();

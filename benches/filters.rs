@@ -4,13 +4,18 @@ extern crate pdatastructs;
 
 use std::collections::HashSet;
 
-use criterion::{Bencher, Criterion, Fun, ParameterizedBenchmark};
+use criterion::{Bencher, BenchmarkId, Criterion};
 use pdatastructs::filters::bloomfilter::BloomFilter;
 use pdatastructs::filters::cuckoofilter::CuckooFilter;
 use pdatastructs::filters::quotientfilter::QuotientFilter;
 use pdatastructs::filters::Filter;
 use pdatastructs::rand::SeedableRng;
 use rand_chacha::ChaChaRng;
+
+const ID_BLOOMFILTER: &str = "bloomfilter";
+const ID_CUCKOOFILTER: &str = "cuckoofilter";
+const ID_HASHSET: &str = "hashset";
+const ID_QUOTIENTFILTER: &str = "quotientfilter";
 
 fn setup_bloomfilter() -> BloomFilter<u64> {
     let false_positive_rate = 0.02; // = 2%
@@ -71,49 +76,60 @@ where
 }
 
 fn benchmarks_setup(c: &mut Criterion) {
-    let functions = vec![
-        Fun::new("bloomfilter", |b, _| run_setup(setup_bloomfilter, b)),
-        Fun::new("cuckoofilter", |b, _| run_setup(setup_cuckoofilter, b)),
-        Fun::new("hashset", |b, _| run_setup(setup_hashset, b)),
-        Fun::new("quotientfilter", |b, _| run_setup(setup_quotientfilter, b)),
-    ];
-    c.bench_functions("setup", functions, ());
+    let mut g = c.benchmark_group("setup");
+
+    g.bench_function(ID_BLOOMFILTER, |b| run_setup(setup_bloomfilter, b));
+    g.bench_function(ID_CUCKOOFILTER, |b| run_setup(setup_cuckoofilter, b));
+    g.bench_function(ID_HASHSET, |b| run_setup(setup_hashset, b));
+    g.bench_function(ID_QUOTIENTFILTER, |b| run_setup(setup_quotientfilter, b));
+
+    g.finish();
 }
 
 fn benchmarks_insert_many(c: &mut Criterion) {
-    let parameters = vec![4_000, 8_000, 12_000, 16_000, 20_000];
-    let benchmark = ParameterizedBenchmark::new(
-        "bloomfilter",
-        |b, n| run_insert_many(setup_bloomfilter, b, *n),
-        parameters,
-    )
-    .with_function("cuckoofilter", |b, n| {
-        run_insert_many(setup_cuckoofilter, b, *n)
-    })
-    .with_function("hashset", |b, n| run_insert_many(setup_hashset, b, *n))
-    .with_function("quotientfilter", |b, n| {
-        run_insert_many(setup_quotientfilter, b, *n)
-    })
-    .sample_size(20);
-    c.bench("insert_many", benchmark);
+    let mut g = c.benchmark_group("insert_many");
+
+    g.sample_size(20);
+
+    for n in [4_000, 8_000, 12_000, 16_000, 20_000] {
+        g.bench_with_input(BenchmarkId::new(ID_BLOOMFILTER, &n), &n, |b, n| {
+            run_insert_many(setup_bloomfilter, b, *n)
+        });
+        g.bench_with_input(BenchmarkId::new(ID_CUCKOOFILTER, &n), &n, |b, n| {
+            run_insert_many(setup_cuckoofilter, b, *n)
+        });
+        g.bench_with_input(BenchmarkId::new(ID_HASHSET, &n), &n, |b, n| {
+            run_insert_many(setup_hashset, b, *n)
+        });
+        g.bench_with_input(BenchmarkId::new(ID_QUOTIENTFILTER, &n), &n, |b, n| {
+            run_insert_many(setup_quotientfilter, b, *n)
+        });
+    }
+
+    g.finish();
 }
 
 fn benchmarks_query_single(c: &mut Criterion) {
-    let parameters = vec![4_000, 8_000];
-    let benchmark = ParameterizedBenchmark::new(
-        "bloomfilter",
-        |b, n| run_query_single(setup_bloomfilter, b, *n),
-        parameters,
-    )
-    .with_function("cuckoofilter", |b, n| {
-        run_query_single(setup_cuckoofilter, b, *n)
-    })
-    .with_function("hashset", |b, n| run_query_single(setup_hashset, b, *n))
-    .with_function("quotientfilter", |b, n| {
-        run_query_single(setup_quotientfilter, b, *n)
-    })
-    .sample_size(20);
-    c.bench("query_single", benchmark);
+    let mut g = c.benchmark_group("query_single");
+
+    g.sample_size(20);
+
+    for n in [4_000, 8_000] {
+        g.bench_with_input(BenchmarkId::new(ID_BLOOMFILTER, &n), &n, |b, n| {
+            run_query_single(setup_bloomfilter, b, *n)
+        });
+        g.bench_with_input(BenchmarkId::new(ID_CUCKOOFILTER, &n), &n, |b, n| {
+            run_query_single(setup_cuckoofilter, b, *n)
+        });
+        g.bench_with_input(BenchmarkId::new(ID_HASHSET, &n), &n, |b, n| {
+            run_query_single(setup_hashset, b, *n)
+        });
+        g.bench_with_input(BenchmarkId::new(ID_QUOTIENTFILTER, &n), &n, |b, n| {
+            run_query_single(setup_quotientfilter, b, *n)
+        });
+    }
+
+    g.finish();
 }
 
 criterion_group!(

@@ -111,7 +111,7 @@ where
     {
         let h1 = self.h_i(&obj, 0) % (self.m as u64);
         let h2 = self.h_i(&obj, 1) % (self.m as u64);
-        HashIter::new(&self, h1, h2)
+        HashIter::new(self, h1, h2)
     }
 
     /// Set up `f`.

@@ -214,7 +214,7 @@ where
     ///
     /// The result may contain less than `k` values if less than `k` unique data points where
     /// observed.
-    pub fn iter<'a>(&'a self) -> impl 'a + Iterator<Item = T> {
+    pub fn iter(&self) -> impl '_ + Iterator<Item = T> {
         self.tree.iter().map(|x| (*x.obj).clone())
     }
 
@@ -324,10 +324,10 @@ mod tests {
     fn is_empty() {
         let cms = CountMinSketch::with_params(10, 20);
         let mut tk = CMSHeap::new(2, cms);
-        assert_eq!(tk.is_empty(), true);
+        assert!(tk.is_empty());
 
         tk.add(0);
-        assert_eq!(tk.is_empty(), false);
+        assert!(!tk.is_empty());
     }
 
     #[test]
@@ -337,7 +337,7 @@ mod tests {
         tk.add(0);
 
         tk.clear();
-        assert_eq!(tk.is_empty(), true);
+        assert!(tk.is_empty());
 
         tk.add(1);
         assert_eq!(tk.iter().collect::<Vec<u32>>(), vec![1]);

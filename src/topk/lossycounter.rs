@@ -264,7 +264,7 @@ where
     /// ```
     ///
     /// The order of the elements is undefined.
-    pub fn query<'a>(&'a self, threshold: f64) -> impl 'a + Iterator<Item = T> {
+    pub fn query(&self, threshold: f64) -> impl '_ + Iterator<Item = T> {
         let bound = (((threshold - self.epsilon) * (self.n as f64)).ceil()).max(0.) as usize;
         self.known
             .iter()
@@ -340,7 +340,7 @@ mod tests {
         assert!(counter.add(42));
 
         let mut data: Vec<u64> = counter.query(0.).collect();
-        data.sort();
+        data.sort_unstable();
         assert_eq!(data, vec![13, 42]);
     }
 
@@ -352,7 +352,7 @@ mod tests {
         assert!(counter.add(42));
 
         let mut data: Vec<u64> = counter.query(0.6).collect();
-        data.sort();
+        data.sort_unstable();
         assert_eq!(data, vec![13]);
     }
 
@@ -369,7 +369,7 @@ mod tests {
         }
 
         let mut data: Vec<u64> = counter.query(0.02).collect();
-        data.sort();
+        data.sort_unstable();
         assert_eq!(data, vec![7, 8, 9]);
     }
 
@@ -385,11 +385,11 @@ mod tests {
         assert_eq!(counter2.n(), 2);
 
         let mut data1: Vec<u64> = counter1.query(0.).collect();
-        data1.sort();
+        data1.sort_unstable();
         assert_eq!(data1, vec![13]);
 
         let mut data2: Vec<u64> = counter2.query(0.).collect();
-        data2.sort();
+        data2.sort_unstable();
         assert_eq!(data2, vec![13, 42]);
     }
 
@@ -401,8 +401,7 @@ mod tests {
 
         counter.clear();
         assert_eq!(counter.n(), 0);
-        let data: Vec<u64> = counter.query(0.).collect();
-        assert!(data.is_empty());
+        assert!(counter.query(0.).next().is_none());
 
         assert!(counter.add(13));
         assert_eq!(counter.n(), 1);
@@ -421,7 +420,6 @@ mod tests {
 
         assert!(counter.add(42));
         assert_eq!(counter.n(), 2);
-        let data: Vec<u64> = counter.query(0.).collect();
-        assert!(data.is_empty());
+        assert!(counter.query(0.).next().is_none());
     }
 }
