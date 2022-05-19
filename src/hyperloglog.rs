@@ -29,6 +29,19 @@ use crate::hyperloglog_data::{
 /// assert_eq!(hll.count(), 2);
 /// ```
 ///
+/// Note that the HyperLogLog is specific to `T`, so the following will not compile:
+///
+/// ```compile_fail
+/// use pdatastructs::hyperloglog::HyperLogLog;
+///
+/// // set up filter
+/// let address_bits = 4;  // so we store 2^4 = 16 registers in total
+/// let mut hll1 = HyperLogLog::<u8>::new(address_bits);
+/// let hll2 = HyperLogLog::<i8>::new(address_bits);
+///
+/// hll1.merge(&hll2);
+/// ```
+///
 /// # Applications
 /// - an approximative `COUNT(DISTINCT x)` in SQL
 /// - count distinct elements in a data stream
@@ -75,7 +88,7 @@ where
     registers: Vec<u8>,
     b: usize,
     buildhasher: B,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<fn() -> T>,
 }
 
 impl<T> HyperLogLog<T>
@@ -351,6 +364,7 @@ mod tests {
     use super::HyperLogLog;
     use crate::hash_utils::BuildHasherSeeded;
     use crate::hyperloglog_data::{RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC};
+    use crate::test_util::{assert_send, NotSend};
 
     #[test]
     #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 18")]
@@ -690,5 +704,11 @@ mod tests {
             HyperLogLog::<u32>::neighbor_search_startpoints(lookup_array, 13.2882),
             (Some(4), Some(4))
         );
+    }
+
+    #[test]
+    fn send() {
+        let hll: HyperLogLog<NotSend> = HyperLogLog::new(4);
+        assert_send(&hll);
     }
 }
