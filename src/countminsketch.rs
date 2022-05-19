@@ -125,7 +125,7 @@ use crate::hash_utils::HashIterBuilder;
 #[derive(Clone)]
 pub struct CountMinSketch<T, C = usize, B = BuildHasherDefault<DefaultHasher>>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
     B: BuildHasher + Clone + Eq,
 {
@@ -138,7 +138,7 @@ where
 
 impl<T, C> CountMinSketch<T, C>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
 {
     /// Create new CountMinSketch based on table size.
@@ -172,7 +172,7 @@ where
 
 impl<T, C, B> CountMinSketch<T, C, B>
 where
-    T: Hash,
+    T: Hash + ?Sized,
     C: CheckedAdd + Clone + One + Ord + Unsigned + Zero,
     B: BuildHasher + Clone + Eq,
 {
@@ -300,7 +300,7 @@ where
 
 impl<T> fmt::Debug for CountMinSketch<T>
 where
-    T: Hash,
+    T: Hash + ?Sized,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "CountMinSketch {{ w: {}, d: {} }}", self.w, self.d)
@@ -511,6 +511,15 @@ mod tests {
         cms.extend(vec![1, 1]);
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 0);
+    }
+
+    #[test]
+    fn add_unsized() {
+        let mut cms = CountMinSketch::<str, usize>::with_params(10, 10);
+
+        assert_eq!(cms.add("test"), 1);
+        assert_eq!(cms.query_point("test"), 1);
+        assert_eq!(cms.query_point("foo"), 0);
     }
 
     #[test]
