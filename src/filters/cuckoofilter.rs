@@ -42,6 +42,24 @@ pub struct CuckooFilterFull;
 /// assert!(!filter.query(&"another super long string"));
 /// ```
 ///
+/// Note that the filter is specific to `T`, so the following will not compile:
+///
+/// ```compile_fail
+/// use pdatastructs::filters::Filter;
+/// use pdatastructs::filters::cuckoofilter::CuckooFilter;
+/// use pdatastructs::rand::SeedableRng;
+/// use rand_chacha::ChaChaRng;
+///
+/// // set up filter
+/// let false_positive_rate = 0.02;  // = 2%
+/// let expected_elements = 1000;
+/// let rng = ChaChaRng::from_seed([0; 32]);
+/// let mut filter1 = CuckooFilter::<u8, _>::with_properties_8(false_positive_rate, expected_elements, rng);
+/// let filter2 = CuckooFilter::<i8, _>::with_properties_8(false_positive_rate, expected_elements, rng);
+///
+/// filter1.union(&filter2);
+/// ```
+///
 /// # Applications
 /// Same as BloomFilter.
 ///
@@ -147,7 +165,7 @@ where
     n_buckets: usize,
     l_fingerprint: usize,
     rng: R,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<fn() -> T>,
 }
 
 impl<T, R> CuckooFilter<T, R>
@@ -581,7 +599,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::CuckooFilter;
-    use crate::{filters::Filter, hash_utils::BuildHasherSeeded};
+    use crate::{
+        filters::Filter,
+        hash_utils::BuildHasherSeeded,
+        test_util::{assert_send, NotSend},
+    };
     use rand::SeedableRng;
     use rand_chacha::ChaChaRng;
 
@@ -920,5 +942,11 @@ mod tests {
         assert_eq!(cf.len(), 1);
         assert!(cf.query("test1"));
         assert!(!cf.query("test2"));
+    }
+
+    #[test]
+    fn send() {
+        let cf = CuckooFilter::<NotSend, _>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        assert_send(&cf);
     }
 }

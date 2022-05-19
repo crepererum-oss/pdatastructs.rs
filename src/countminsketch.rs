@@ -33,6 +33,20 @@ use crate::hash_utils::HashIterBuilder;
 /// assert_eq!(cms.query_point(&"another super long string"), 0);
 /// ```
 ///
+/// Note that the sketch is specific to `T`, so the following will not compile:
+///
+/// ```compile_fail
+/// use pdatastructs::countminsketch::CountMinSketch;
+///
+/// // set up filter
+/// let epsilon = 0.1;  // error threshold
+/// let delta = 0.2;  // epsilon is hit in (1 - 0.2) * 100% = 80%
+/// let mut cms1 = CountMinSketch::<u8, _>::with_point_query_properties(epsilon, delta);
+/// let cms2 = CountMinSketch::<i8, _>::with_point_query_properties(epsilon, delta);
+///
+/// cms1.merge(&cms2);
+/// ```
+///
 /// # Applications
 /// - when a lot of data is streamed in an approximative counter is good enough, e.g. for access
 ///   counts in network filters
@@ -119,7 +133,7 @@ where
     w: usize,
     d: usize,
     builder: HashIterBuilder<B>,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<fn() -> T>,
 }
 
 impl<T, C> CountMinSketch<T, C>
@@ -307,7 +321,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::CountMinSketch;
-    use crate::hash_utils::BuildHasherSeeded;
+    use crate::{
+        hash_utils::BuildHasherSeeded,
+        test_util::{assert_send, NotSend},
+    };
 
     #[test]
     fn getter() {
@@ -494,5 +511,11 @@ mod tests {
         cms.extend(vec![1, 1]);
         assert_eq!(cms.query_point(&1), 2);
         assert_eq!(cms.query_point(&2), 0);
+    }
+
+    #[test]
+    fn send() {
+        let cms = CountMinSketch::<NotSend>::with_params(10, 10);
+        assert_send(&cms);
     }
 }

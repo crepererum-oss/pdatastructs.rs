@@ -32,6 +32,20 @@ use crate::hash_utils::HashIterBuilder;
 /// assert!(!filter.query(&"another super long string"));
 /// ```
 ///
+/// Note that the filter is specific to `T`, so the following will not compile:
+///
+/// ```compile_fail
+/// use pdatastructs::filters::Filter;
+/// use pdatastructs::filters::bloomfilter::BloomFilter;
+///
+/// let false_positive_rate = 0.02;  // = 2%
+/// let expected_elements = 1000;
+/// let mut filter1 = BloomFilter::<u8>::with_properties(expected_elements, false_positive_rate);
+/// let filter2 = BloomFilter::<i8>::with_properties(expected_elements, false_positive_rate);
+///
+/// filter1.union(&filter2);
+/// ```
+///
 /// # Applications
 /// - when a lot of data should be added to the set and a moderate false positive rate is
 ///   acceptable, was used for spell checking
@@ -149,7 +163,7 @@ where
     bs: FixedBitSet,
     k: usize,
     builder: HashIterBuilder<B>,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<fn() -> T>,
 }
 
 impl<T> BloomFilter<T>
@@ -326,6 +340,7 @@ mod tests {
 
     use crate::filters::Filter;
     use crate::hash_utils::BuildHasherSeeded;
+    use crate::test_util::{assert_send, NotSend};
 
     #[test]
     fn getter() {
@@ -507,5 +522,11 @@ mod tests {
         assert!(bf.insert("test1").unwrap());
         assert!(bf.query("test1"));
         assert!(!bf.query("test2"));
+    }
+
+    #[test]
+    fn send() {
+        let bf = BloomFilter::<NotSend>::with_params(100, 2);
+        assert_send(&bf);
     }
 }

@@ -61,6 +61,21 @@ impl ScanResult {
 /// assert!(!filter.query(&"another super long string"));
 /// ```
 ///
+/// Note that the filter is specific to `T`, so the following will not compile:
+///
+/// ```compile_fail
+/// use pdatastructs::filters::Filter;
+/// use pdatastructs::filters::quotientfilter::QuotientFilter;
+///
+/// // set up filter
+/// let bits_quotient = 16;
+/// let bits_remainder = 5;
+/// let mut filter1 = QuotientFilter::<u8>::with_params(bits_quotient, bits_remainder);
+/// let filter2 = QuotientFilter::<i8>::with_params(bits_quotient, bits_remainder);
+///
+/// filter1.union(&filter2);
+/// ```
+///
 /// # Applications
 /// - when a lot of data should be added to the set and a moderate false positive rate is
 ///   acceptable, was used for spell checking
@@ -250,7 +265,7 @@ where
     bits_quotient: usize,
     buildhasher: B,
     n_elements: usize,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<fn() -> T>,
 }
 
 impl<T> QuotientFilter<T>
@@ -615,6 +630,7 @@ mod tests {
     use super::QuotientFilter;
     use crate::filters::Filter;
     use crate::hash_utils::BuildHasherSeeded;
+    use crate::test_util::{assert_send, NotSend};
 
     #[test]
     #[should_panic(expected = "bits_quotient (0) must be greater than 0")]
@@ -827,5 +843,11 @@ mod tests {
         assert_eq!(qf.len(), 1);
         assert!(qf.query("test1"));
         assert!(!qf.query("test2"));
+    }
+
+    #[test]
+    fn send() {
+        let qf = QuotientFilter::<NotSend>::with_params(3, 16);
+        assert_send(&qf);
     }
 }

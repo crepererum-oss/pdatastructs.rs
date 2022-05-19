@@ -31,3 +31,6 @@ mod hyperloglog_data;
 pub mod reservoirsampling;
 pub mod tdigest;
 pub mod topk;
+
+#[cfg(test)]
+mod test_util;
