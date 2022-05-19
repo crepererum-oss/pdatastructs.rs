@@ -707,6 +707,15 @@ mod tests {
     }
 
     #[test]
+    fn add_unsized() {
+        let mut hll = HyperLogLog::new(4);
+
+        hll.add("test1");
+        hll.add("test2");
+        assert_eq!(hll.count(), 2);
+    }
+
+    #[test]
     fn send() {
         let hll: HyperLogLog<NotSend> = HyperLogLog::new(4);
         assert_send(&hll);
