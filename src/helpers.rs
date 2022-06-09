@@ -1,13 +1,30 @@
+#![allow(dead_code)]
 use std::mem;
 
-use num_traits::Zero;
 use succinct::storage::BlockType;
 use succinct::IntVector;
+
+/// Our own version of `num_traits::Zero` so we don't need to depend on it just for the two types.
+pub(crate) trait NumZero {
+    fn create_zero() -> Self;
+}
+
+impl NumZero for usize {
+    fn create_zero() -> Self {
+        0
+    }
+}
+
+impl NumZero for u64 {
+    fn create_zero() -> Self {
+        0
+    }
+}
 
 /// Quicker all-zero initialization of an IntVector.
 pub(crate) fn all_zero_intvector<T>(element_bits: usize, len: usize) -> IntVector<T>
 where
-    T: BlockType + Zero,
+    T: BlockType + NumZero,
 {
     let n_blocks = {
         let bits = mem::size_of::<T>()
@@ -23,5 +40,5 @@ where
             blocks
         }
     };
-    IntVector::block_with_fill(element_bits, n_blocks, T::zero())
+    IntVector::block_with_fill(element_bits, n_blocks, T::create_zero())
 }
