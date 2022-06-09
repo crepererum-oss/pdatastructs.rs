@@ -1,8 +1,14 @@
 //! Filters, Approximate Membership Queries (AMQs).
 
+#[cfg(feature = "fixedbitset")]
 pub mod bloomfilter;
+
 pub mod compat;
+
+#[cfg(all(feature = "rand", feature = "succinct"))]
 pub mod cuckoofilter;
+
+#[cfg(all(feature = "fixedbitset", feature = "succinct"))]
 pub mod quotientfilter;
 
 use std::fmt::Debug;

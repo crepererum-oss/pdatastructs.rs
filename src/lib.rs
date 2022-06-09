@@ -19,17 +19,34 @@
 #![deny(unsafe_code)]
 #![deny(unused_extern_crates)]
 
+#[cfg(feature = "num-traits")]
 pub use num_traits;
+
+#[cfg(feature = "rand")]
 pub use rand;
 
+#[cfg(feature = "num-traits")]
 pub mod countminsketch;
+
 pub mod filters;
+
 pub mod hash_utils;
+
+#[cfg(feature = "succinct")]
 mod helpers;
+
+#[cfg(feature = "bytecount")]
 pub mod hyperloglog;
+
+#[cfg(feature = "bytecount")]
 mod hyperloglog_data;
+
+#[cfg(feature = "rand")]
 pub mod reservoirsampling;
+
+#[cfg(feature = "rand")]
 pub mod tdigest;
+
 pub mod topk;
 
 #[cfg(test)]

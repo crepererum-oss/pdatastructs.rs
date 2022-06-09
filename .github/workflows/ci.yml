@@ -33,32 +33,53 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
 
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Install cargo-hack
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: install
+          args: cargo-hack
+
       - name: cargo fmt
         uses: actions-rs/cargo@v1.0.3
         with:
           command: fmt
           args: --all -- --check
 
+      - name: cargo check (feature powerset)
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: hack
+          args: check --feature-powerset --no-dev-deps --optional-deps --workspace
+
       - name: cargo build
         uses: actions-rs/cargo@v1.0.3
         with:
           command: build
-          args: --verbose --all
+          args: --verbose --all-features
+
+      - name: cargo clippy
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: clippy
+          args: --verbose --all-features --all-targets --workspace
 
       - name: cargo test
         uses: actions-rs/cargo@v1.0.3
         with:
           command: test
-          args: --verbose --all
+          args: --verbose --all-features --workspace
 
       - name: cargo doc
         uses: actions-rs/cargo@v1.0.3
         with:
           command: doc
-          args: --verbose --all
+          args: --verbose --all-features --workspace
 
       - name: cargo bench
         uses: actions-rs/cargo@v1.0.3
         with:
           command: bench
-          args: --verbose --all -- --test
+          args: --verbose --all-features --workspace -- --test
