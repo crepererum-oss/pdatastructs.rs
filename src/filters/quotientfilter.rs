@@ -11,7 +11,7 @@ use crate::filters::Filter;
 use crate::helpers::all_zero_intvector;
 
 /// Error that signals that the QuotientFilter is full.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct QuotientFilterFull;
 
 /// Internal results for scanning the quotientfilter.
@@ -282,7 +282,7 @@ where
     /// and a default hasher.
     pub fn with_params(bits_quotient: usize, bits_remainder: usize) -> Self {
         let buildhasher = BuildHasherDefault::<DefaultHasher>::default();
-        QuotientFilter::with_params_and_hash(bits_quotient, bits_remainder, buildhasher)
+        Self::with_params_and_hash(bits_quotient, bits_remainder, buildhasher)
     }
 }
 

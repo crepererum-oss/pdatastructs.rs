@@ -21,7 +21,7 @@ where
     T: Eq + Ord,
 {
     fn clone(&self) -> Self {
-        TreeEntry {
+        Self {
             obj: Rc::clone(&self.obj),
             n: self.n,
         }
@@ -32,7 +32,7 @@ impl<T> PartialEq for TreeEntry<T>
 where
     T: Eq + Ord,
 {
-    fn eq(&self, other: &TreeEntry<T>) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.obj == other.obj
     }
 }
@@ -43,7 +43,7 @@ impl<T> PartialOrd for TreeEntry<T>
 where
     T: Eq + Ord,
 {
-    fn partial_cmp(&self, other: &TreeEntry<T>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match self.n.cmp(&other.n) {
             Ordering::Greater => Some(Ordering::Greater),
             Ordering::Less => Some(Ordering::Less),
@@ -56,7 +56,7 @@ impl<T> Ord for TreeEntry<T>
 where
     T: Eq + Ord,
 {
-    fn cmp(&self, other: &TreeEntry<T>) -> Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other).unwrap()
     }
 }
@@ -235,7 +235,7 @@ impl<T> fmt::Debug for CMSHeap<T>
 where
     T: Clone + Eq + Hash + Ord,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "CMSHeap {{ k: {} }}", self.k)
     }
 }

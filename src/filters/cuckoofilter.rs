@@ -14,7 +14,7 @@ const MAX_NUM_KICKS: usize = 500; // mentioned in paper
 
 /// Error struct used to signal that a `CuckooFilter` is full, i.e. that a value cannot be inserted
 /// because the implementation was unable to find a free bucket.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct CuckooFilterFull;
 
 /// A CuckooFilter is a set-like data structure, that keeps track of elements it has seen without
@@ -587,7 +587,7 @@ where
     R: Rng,
     B: BuildHasher + Clone + Eq,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "CuckooFilter {{ bucketsize: {}, n_buckets: {} }}",

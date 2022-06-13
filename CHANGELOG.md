@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7 --- Misc Improvements & Fixes
+
+### All
+- support `?Sized` where possible
+- implement `Send` where possible
+
+### Filters
+- proper union support
+
+### HyperLogLog
+- fix potential out-of-bounds access (#74)
+- improve performance
+
+### T-Digest
+- more scale functions
+
+### Dependencies
+- replace `Void` with `Infallible`
+- update dependencies
+- make all dependencies optional
+
 ## 0.6 --- T-Digest, Lossy Counter
 
 ### T-Digest
