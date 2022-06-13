@@ -1,6 +1,7 @@
 # pdatastructs
 
-Simple probabilistic data structures
+A collection of data structures that are based probability theory and therefore only provide the correct answer if a
+certain probability. In exchange they have a better runtime and memory complexity compared to traditional data structures.
 
 [![Build Status](https://github.com/crepererum/pdatastructs.rs/workflows/CI/badge.svg)](https://github.com/crepererum/pdatastructs.rs/actions?query=workflow%3ACI)
 [![Crates.io](https://img.shields.io/crates/v/pdatastructs.svg)](https://crates.io/crates/pdatastructs)
@@ -25,8 +26,8 @@ The following data structures are implemented:
 
 Licensed under either of these:
 
- * Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
- * MIT License ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
+ * Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+ * MIT License ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
 
 ### Contributing
 

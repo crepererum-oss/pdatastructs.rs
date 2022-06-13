@@ -105,7 +105,7 @@ where
     ///
     /// This call is CPU-expensive and may only be used if the resulting iterator will really be
     /// used.
-    pub fn iter_for<T>(&self, obj: &T) -> HashIter<B>
+    pub fn iter_for<T>(&self, obj: &T) -> HashIter<'_, B>
     where
         T: Hash + ?Sized,
     {
@@ -141,7 +141,7 @@ where
 #[derive(Debug)]
 pub struct HashIter<'a, B>
 where
-    B: 'a + BuildHasher,
+    B: BuildHasher,
 {
     builder: &'a HashIterBuilder<B>,
     h1: u64,
@@ -191,7 +191,7 @@ where
 }
 
 /// BuildHasher that takes a seed.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BuildHasherSeeded {
     seed: usize,
 }

@@ -203,7 +203,7 @@ where
 
         let w = (f64::consts::E / epsilon).ceil() as usize;
         let d = (1. / delta).ln().ceil() as usize;
-        CountMinSketch::with_params_and_hasher(w, d, buildhasher)
+        Self::with_params_and_hasher(w, d, buildhasher)
     }
 
     /// Get number of columns of internal counter table.
@@ -302,7 +302,7 @@ impl<T> fmt::Debug for CountMinSketch<T>
 where
     T: Hash + ?Sized,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "CountMinSketch {{ w: {}, d: {} }}", self.w, self.d)
     }
 }

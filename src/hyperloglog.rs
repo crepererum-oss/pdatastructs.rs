@@ -332,7 +332,7 @@ impl<T> fmt::Debug for HyperLogLog<T>
 where
     T: Hash + ?Sized,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "HyperLogLog {{ b: {} }}", self.b)
     }
 }

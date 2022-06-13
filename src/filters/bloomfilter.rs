@@ -220,7 +220,7 @@ where
         let ln2 = (2f64).ln();
         let m = (-((n as f64) * p.ln()) / (ln2 * ln2)) as usize;
 
-        BloomFilter::with_params_and_hash(m, k, buildhasher)
+        Self::with_params_and_hash(m, k, buildhasher)
     }
 
     /// Get `k` (number of hash functions).
@@ -318,7 +318,7 @@ impl<T> fmt::Debug for BloomFilter<T>
 where
     T: Hash + ?Sized,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "BloomFilter {{ m: {}, k: {} }}", self.bs.len(), self.k)
     }
 }
