@@ -179,6 +179,20 @@ where
         Self::with_params_and_hash(m, k, bh)
     }
 
+    /// Create BloomFilter with internal parameters and existing bitmap.
+    ///
+    /// - `k` is the number of hash functions
+    /// - `m` is the number of bits used to store state
+    /// - `bitmap` is the bitmap from an existing bloom filter
+    pub fn with_existing_filter<I: IntoIterator<Item = u32>>(
+        m: usize,
+        k: usize,
+        bitmap: I,
+    ) -> Self {
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
+        Self::with_existing_filter_and_hash(m, k, bitmap, bh)
+    }
+
     /// Create new, empty BloomFilter with given properties.
     ///
     /// - `n` number of unique elements the BloomFilter is expected to hold, must be `> 0`
@@ -201,6 +215,21 @@ where
     pub fn with_params_and_hash(m: usize, k: usize, buildhasher: B) -> Self {
         Self {
             bs: FixedBitSet::with_capacity(m),
+            k,
+            builder: HashIterBuilder::new(m, k, buildhasher),
+            phantom: PhantomData,
+        }
+    }
+
+    /// Same as `with_existing_filter` but with specific `BuildHasher`.
+    pub fn with_existing_filter_and_hash<I: IntoIterator<Item = u32>>(
+        m: usize,
+        k: usize,
+        bitmap: I,
+        buildhasher: B,
+    ) -> Self {
+        Self {
+            bs: FixedBitSet::with_capacity_and_blocks(m, bitmap),
             k,
             builder: HashIterBuilder::new(m, k, buildhasher),
             phantom: PhantomData,
@@ -236,6 +265,11 @@ where
     /// Get `BuildHasher`.
     pub fn buildhasher(&self) -> &B {
         self.builder.buildhasher()
+    }
+
+    /// Get bitmap data.
+    pub fn bitmap(&self) -> &[u32] {
+        self.bs.as_slice()
     }
 }
 
@@ -528,5 +562,23 @@ mod tests {
     fn send() {
         let bf = BloomFilter::<NotSend>::with_params(100, 2);
         assert_send(&bf);
+    }
+
+    #[test]
+    fn bitmap_save_load() {
+        let mut bf = BloomFilter::with_params(100, 2);
+
+        assert!(bf.insert(&1).unwrap());
+        assert!(bf.insert(&7).unwrap());
+        assert!(bf.insert(&52).unwrap());
+
+        let bitmap = bf.bitmap().to_vec();
+
+        let loaded_bf = BloomFilter::with_existing_filter(100, 2, bitmap);
+
+        assert!(loaded_bf.query(&1));
+        assert!(loaded_bf.query(&7));
+        assert!(loaded_bf.query(&52));
+        assert!(!loaded_bf.query(&15));
     }
 }
