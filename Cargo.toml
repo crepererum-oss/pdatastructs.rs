@@ -28,6 +28,7 @@ criterion = "0.4"
 rand_chacha = "0.3"
 rand_distr = "0.4"
 sbbf-rs = { git = "https://github.com/ozgrakkurt/sbbf-rs" }
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
 [features]
 default = [

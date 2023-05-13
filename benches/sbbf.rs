@@ -5,6 +5,7 @@ use std::{
 
 use pdatastructs::filters::Filter;
 use sbbf_rs::{FilterFn, ALIGNMENT, BUCKET_SIZE};
+use xxhash_rust::xxh3::xxh3_64;
 
 pub struct Sbbf {
     filter_fn: FilterFn,
@@ -23,14 +24,14 @@ impl Sbbf {
         }
     }
 
-    pub fn contains(&self, hash: u64) -> bool {
+    fn contains(&self, hash: u64) -> bool {
         unsafe {
             self.filter_fn
                 .contains(self.buf.ptr, self.num_buckets, hash)
         }
     }
 
-    pub fn insert(&mut self, hash: u64) {
+    fn insert(&mut self, hash: u64) {
         unsafe { self.filter_fn.insert(self.buf.ptr, self.num_buckets, hash) }
     }
 }
@@ -68,10 +69,11 @@ impl Filter<u64> for Sbbf {
 
     fn insert(&mut self, obj: &u64) -> Result<bool, Self::InsertErr> {
         unsafe {
+            let hash = xxh3_64(obj.to_be_bytes().as_ref());
             let found = self
                 .filter_fn
-                .contains(self.buf.ptr, self.num_buckets, *obj);
-            self.filter_fn.insert(self.buf.ptr, self.num_buckets, *obj);
+                .contains(self.buf.ptr, self.num_buckets, hash);
+            self.filter_fn.insert(self.buf.ptr, self.num_buckets, hash);
             Ok(found)
         }
     }
@@ -104,8 +106,11 @@ impl Filter<u64> for Sbbf {
 
     fn query(&self, obj: &u64) -> bool {
         unsafe {
-            self.filter_fn
-                .contains(self.buf.ptr, self.num_buckets, *obj)
+            self.filter_fn.contains(
+                self.buf.ptr,
+                self.num_buckets,
+                xxh3_64(obj.to_be_bytes().as_ref()),
+            )
         }
     }
 }
