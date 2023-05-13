@@ -23,17 +23,6 @@ impl Sbbf {
             num_buckets: len / BUCKET_SIZE,
         }
     }
-
-    fn contains(&self, hash: u64) -> bool {
-        unsafe {
-            self.filter_fn
-                .contains(self.buf.ptr, self.num_buckets, hash)
-        }
-    }
-
-    fn insert(&mut self, hash: u64) {
-        unsafe { self.filter_fn.insert(self.buf.ptr, self.num_buckets, hash) }
-    }
 }
 
 struct Buf {
@@ -72,8 +61,7 @@ impl Filter<u64> for Sbbf {
             let hash = xxh3_64(obj.to_be_bytes().as_ref());
             let found = self
                 .filter_fn
-                .contains(self.buf.ptr, self.num_buckets, hash);
-            self.filter_fn.insert(self.buf.ptr, self.num_buckets, hash);
+                .check_and_insert(self.buf.ptr, self.num_buckets, hash);
             Ok(found)
         }
     }
