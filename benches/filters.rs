@@ -12,10 +12,15 @@ use pdatastructs::filters::Filter;
 use pdatastructs::rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 
+mod sbbf;
+
+use sbbf::Sbbf;
+
 const ID_BLOOMFILTER: &str = "bloomfilter";
 const ID_CUCKOOFILTER: &str = "cuckoofilter";
 const ID_HASHSET: &str = "hashset";
 const ID_QUOTIENTFILTER: &str = "quotientfilter";
+const ID_SBBF: &str = "splitblockbloomfilter";
 
 fn setup_bloomfilter() -> BloomFilter<u64> {
     let false_positive_rate = 0.02; // = 2%
@@ -38,6 +43,10 @@ fn setup_quotientfilter() -> QuotientFilter<u64> {
     let bits_quotient = 15;
     let bits_remainder = 4;
     QuotientFilter::with_params(bits_quotient, bits_remainder)
+}
+
+fn setup_sbbf() -> Sbbf {
+    Sbbf::new(8, 10_000)
 }
 
 fn run_setup<F, S>(setup: S, b: &mut Bencher)
@@ -82,6 +91,7 @@ fn benchmarks_setup(c: &mut Criterion) {
     g.bench_function(ID_CUCKOOFILTER, |b| run_setup(setup_cuckoofilter, b));
     g.bench_function(ID_HASHSET, |b| run_setup(setup_hashset, b));
     g.bench_function(ID_QUOTIENTFILTER, |b| run_setup(setup_quotientfilter, b));
+    g.bench_function(ID_SBBF, |b| run_setup(setup_sbbf, b));
 
     g.finish();
 }
@@ -103,6 +113,9 @@ fn benchmarks_insert_many(c: &mut Criterion) {
         });
         g.bench_with_input(BenchmarkId::new(ID_QUOTIENTFILTER, &n), &n, |b, n| {
             run_insert_many(setup_quotientfilter, b, *n)
+        });
+        g.bench_with_input(BenchmarkId::new(ID_SBBF, &n), &n, |b, n| {
+            run_insert_many(setup_sbbf, b, *n)
         });
     }
 
@@ -126,6 +139,9 @@ fn benchmarks_query_single(c: &mut Criterion) {
         });
         g.bench_with_input(BenchmarkId::new(ID_QUOTIENTFILTER, &n), &n, |b, n| {
             run_query_single(setup_quotientfilter, b, *n)
+        });
+        g.bench_with_input(BenchmarkId::new(ID_SBBF, &n), &n, |b, n| {
+            run_query_single(setup_sbbf, b, *n)
         });
     }
 
