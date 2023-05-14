@@ -59,9 +59,7 @@ impl Filter<u64> for Sbbf {
     fn insert(&mut self, obj: &u64) -> Result<bool, Self::InsertErr> {
         unsafe {
             let hash = xxh3_64(obj.to_be_bytes().as_ref());
-            let found = self
-                .filter_fn
-                .check_and_insert(self.buf.ptr, self.num_buckets, hash);
+            let found = self.filter_fn.insert(self.buf.ptr, self.num_buckets, hash);
             Ok(found)
         }
     }
