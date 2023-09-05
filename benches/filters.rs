@@ -92,16 +92,16 @@ fn benchmarks_insert_many(c: &mut Criterion) {
     g.sample_size(20);
 
     for n in [4_000, 8_000, 12_000, 16_000, 20_000] {
-        g.bench_with_input(BenchmarkId::new(ID_BLOOMFILTER, &n), &n, |b, n| {
+        g.bench_with_input(BenchmarkId::new(ID_BLOOMFILTER, n), &n, |b, n| {
             run_insert_many(setup_bloomfilter, b, *n)
         });
-        g.bench_with_input(BenchmarkId::new(ID_CUCKOOFILTER, &n), &n, |b, n| {
+        g.bench_with_input(BenchmarkId::new(ID_CUCKOOFILTER, n), &n, |b, n| {
             run_insert_many(setup_cuckoofilter, b, *n)
         });
-        g.bench_with_input(BenchmarkId::new(ID_HASHSET, &n), &n, |b, n| {
+        g.bench_with_input(BenchmarkId::new(ID_HASHSET, n), &n, |b, n| {
             run_insert_many(setup_hashset, b, *n)
         });
-        g.bench_with_input(BenchmarkId::new(ID_QUOTIENTFILTER, &n), &n, |b, n| {
+        g.bench_with_input(BenchmarkId::new(ID_QUOTIENTFILTER, n), &n, |b, n| {
             run_insert_many(setup_quotientfilter, b, *n)
         });
     }
@@ -115,16 +115,16 @@ fn benchmarks_query_single(c: &mut Criterion) {
     g.sample_size(20);
 
     for n in [4_000, 8_000] {
-        g.bench_with_input(BenchmarkId::new(ID_BLOOMFILTER, &n), &n, |b, n| {
+        g.bench_with_input(BenchmarkId::new(ID_BLOOMFILTER, n), &n, |b, n| {
             run_query_single(setup_bloomfilter, b, *n)
         });
-        g.bench_with_input(BenchmarkId::new(ID_CUCKOOFILTER, &n), &n, |b, n| {
+        g.bench_with_input(BenchmarkId::new(ID_CUCKOOFILTER, n), &n, |b, n| {
             run_query_single(setup_cuckoofilter, b, *n)
         });
-        g.bench_with_input(BenchmarkId::new(ID_HASHSET, &n), &n, |b, n| {
+        g.bench_with_input(BenchmarkId::new(ID_HASHSET, n), &n, |b, n| {
             run_query_single(setup_hashset, b, *n)
         });
-        g.bench_with_input(BenchmarkId::new(ID_QUOTIENTFILTER, &n), &n, |b, n| {
+        g.bench_with_input(BenchmarkId::new(ID_QUOTIENTFILTER, n), &n, |b, n| {
             run_query_single(setup_quotientfilter, b, *n)
         });
     }

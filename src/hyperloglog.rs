@@ -596,7 +596,7 @@ mod tests {
     fn slice() {
         let mut hll: HyperLogLog<[u8]> = HyperLogLog::new(4);
         {
-            let v = vec![0];
+            let v = [0];
             hll.add(&v[..]);
         }
         // `hll` is still usable after `v` is dropped:

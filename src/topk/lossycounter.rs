@@ -231,7 +231,7 @@ where
         // add new data
         let was_new = match self.known.entry(t) {
             Entry::Occupied(mut o) => {
-                let mut value = o.get_mut();
+                let value = o.get_mut();
                 value.f += 1;
                 false
             }
