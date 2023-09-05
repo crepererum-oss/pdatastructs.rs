@@ -6,7 +6,6 @@
     clippy::explicit_iter_loop,
     clippy::future_not_send,
     clippy::use_self,
-    const_err,
     dead_code,
     illegal_floating_point_literal_pattern,
     missing_copy_implementations,

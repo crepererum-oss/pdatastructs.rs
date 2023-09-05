@@ -44,11 +44,7 @@ where
     T: Eq + Ord,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.n.cmp(&other.n) {
-            Ordering::Greater => Some(Ordering::Greater),
-            Ordering::Less => Some(Ordering::Less),
-            Ordering::Equal => Some(self.obj.cmp(&other.obj)),
-        }
+        Some(self.cmp(other))
     }
 }
 
@@ -57,7 +53,11 @@ where
     T: Eq + Ord,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        match self.n.cmp(&other.n) {
+            Ordering::Greater => Ordering::Greater,
+            Ordering::Less => Ordering::Less,
+            Ordering::Equal => self.obj.cmp(&other.obj),
+        }
     }
 }
 
