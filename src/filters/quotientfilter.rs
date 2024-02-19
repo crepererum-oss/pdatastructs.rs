@@ -1,7 +1,7 @@
 //! QuotientFilter implementation.
 use std::collections::hash_map::DefaultHasher;
 use std::collections::VecDeque;
-use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 use std::marker::PhantomData;
 
 use fixedbitset::FixedBitSet;
@@ -346,9 +346,7 @@ where
 
     fn calc_quotient_remainder(&self, obj: &T) -> (usize, usize) {
         let bits_remainder = self.bits_remainder();
-        let mut hasher = self.buildhasher.build_hasher();
-        obj.hash(&mut hasher);
-        let fingerprint = hasher.finish();
+        let fingerprint = self.buildhasher.hash_one(obj);
         let bits_trash = 64 - bits_remainder - self.bits_quotient;
         let trash = if bits_trash > 0 {
             (fingerprint >> (64 - bits_trash)) << (64 - bits_trash)

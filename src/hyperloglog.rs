@@ -2,7 +2,7 @@
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 use std::marker::PhantomData;
 
 use crate::hyperloglog_data::{
@@ -152,15 +152,18 @@ where
 
     /// Adds an element to the HyperLogLog.
     pub fn add(&mut self, obj: &T) {
-        let mut hasher = self.buildhasher.build_hasher();
-        obj.hash(&mut hasher);
-        let h: u64 = hasher.finish();
+        self.add_hashed(self.buildhasher.hash_one(obj));
+    }
 
-        // split h into:
+    /// Adds an already-hashed element to the HyperLogLog
+    ///
+    /// Note: Make sure to use the same hasher as the rest of the HyperLogLog when hashing values on your own
+    pub fn add_hashed(&mut self, hashed_value: u64) {
+        // split hashed_value into:
         //  - w = 64 - b upper bits
         //  - j = b lower bits
-        let w = h >> self.b;
-        let j = h - (w << self.b); // no 1 as in the paper since register indices are 0-based
+        let w = hashed_value >> self.b;
+        let j = hashed_value - (w << self.b); // no 1 as in the paper since register indices are 0-based
 
         // p = leftmost bit (1-based count)
         let p = w.leading_zeros() + 1 - (self.b as u32);
@@ -364,7 +367,9 @@ where
 /// # Examples
 /// ```
 /// use pdatastructs::hyperloglog::HyperLogLog;
+/// use pdatastructs::hyperloglog::serde::HyperLogLogExport;
 /// use serde_json;
+/// use std::hash::{BuildHasherDefault, DefaultHasher};
 ///
 /// let mut hll = HyperLogLog::new(4);
 /// hll.add(&"some string");
@@ -373,9 +378,8 @@ where
 /// let json = serde_json::to_string(&hll_export).expect("valid json");
 ///
 /// // elsewhere
-/// let hll_export = serde_json::from_string(&json).expect("valid export");
-/// let hasher = BuildHasher::default();
-/// let hll = HyperLogLog::from_exported_hyperloglog(&hll_export, hasher);
+/// let hll_export = serde_json::from_str(&json).expect("valid export");
+/// let hll: HyperLogLog<str, BuildHasherDefault<DefaultHasher>> = HyperLogLog::from_exported_hyperloglog(hll_export, BuildHasherDefault::default());
 ///
 /// assert!(hll.count() > 0);
 /// ```
@@ -812,13 +816,13 @@ mod tests {
     #[test]
     fn serde() {
         let hasher = BuildHasherDefault::default();
-        let mut hll = HyperLogLog::with_hash(4, hasher);
+        let mut hll = HyperLogLog::with_hash(4, hasher.clone());
         hll.add("abc");
-        let export: HyperLogLogExport = hll.into();
+        let export: HyperLogLogExport = HyperLogLogExport::from(&hll);
         let json = serde_json::to_string(&export).expect("can serialize to json");
         let de_hll_export = serde_json::from_str(&json).expect("can deserialize from json");
         let de_hll: HyperLogLog<str, _> =
             HyperLogLog::from_exported_hyperloglog(de_hll_export, hasher);
-        assert_eq!(&hll, ede_hll);
+        assert_eq!(hll, de_hll);
     }
 }
