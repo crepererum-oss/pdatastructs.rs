@@ -79,7 +79,7 @@ use crate::hyperloglog_data::{
 /// - ["Appendix to HyperLogLog in Practice: Algorithmic Engineering of a State of the Art
 ///   Cardinality Estimation Algorithm", Stefan Heule, Marc Nunkesser, Alexander Hall, 2016](https://goo.gl/iU8Ig)
 /// - [Wikipedia: HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct HyperLogLog<T, B = BuildHasherDefault<DefaultHasher>>
 where
     T: Hash + ?Sized,
@@ -359,12 +359,100 @@ where
     }
 }
 
+/// Serde support for `pdatastructs::hyperloglog::HyperLogLog`
+///
+/// # Examples
+/// ```
+/// use pdatastructs::hyperloglog::HyperLogLog;
+/// use serde_json;
+///
+/// let mut hll = HyperLogLog::new(4);
+/// hll.add(&"some string");
+///
+/// let hll_export = HyperLogLogExport::from(&hll);
+/// let json = serde_json::to_string(&hll_export).expect("valid json");
+///
+/// // elsewhere
+/// let hll_export = serde_json::from_string(&json).expect("valid export");
+/// let hasher = BuildHasher::default();
+/// let hll = HyperLogLog::from_exported_hyperloglog(&hll_export, hasher);
+///
+/// assert!(hll.count() > 0);
+/// ```
+#[cfg(feature = "serde")]
+pub mod serde {
+
+    use super::HyperLogLog;
+    use serde::{Deserialize, Serialize};
+    use std::fmt;
+    use std::hash::{BuildHasher, Hash};
+    use std::marker::PhantomData;
+
+    impl<T, B> HyperLogLog<T, B>
+    where
+        T: Hash + ?Sized,
+        B: BuildHasher + Clone + Eq,
+    {
+        /// Reconstruct HyperLogLog from a previously exported HyperLogLog
+        pub fn from_exported_hyperloglog(exported: HyperLogLogExport, buildhasher: B) -> Self {
+            Self {
+                registers: exported.registers,
+                b: exported.b,
+                buildhasher,
+                phantom: PhantomData,
+            }
+        }
+    }
+
+    /// Captures the underlying HyperLogLog data such that it can be serialized and deserialized
+    /// using serde
+    #[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
+    pub struct HyperLogLogExport {
+        registers: Vec<u8>,
+        b: usize,
+    }
+
+    impl<T, H> From<HyperLogLog<T, H>> for HyperLogLogExport
+    where
+        T: Hash + ?Sized,
+        H: BuildHasher + Clone + Eq,
+    {
+        fn from(value: HyperLogLog<T, H>) -> Self {
+            Self {
+                registers: value.registers,
+                b: value.b,
+            }
+        }
+    }
+
+    impl<T, H> From<&HyperLogLog<T, H>> for HyperLogLogExport
+    where
+        T: Hash + ?Sized,
+        H: BuildHasher + Clone + Eq,
+    {
+        fn from(value: &HyperLogLog<T, H>) -> Self {
+            Self {
+                registers: value.registers.clone(),
+                b: value.b,
+            }
+        }
+    }
+
+    impl fmt::Debug for HyperLogLogExport {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "HyperLogLogExport {{ b: {} }}", self.b)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::HyperLogLog;
     use crate::hash_utils::BuildHasherSeeded;
+    use crate::hyperloglog::serde::HyperLogLogExport;
     use crate::hyperloglog_data::{RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC};
     use crate::test_util::{assert_send, NotSend};
+    use std::hash::BuildHasherDefault;
 
     #[test]
     #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 18")]
@@ -719,5 +807,18 @@ mod tests {
     fn send() {
         let hll: HyperLogLog<NotSend> = HyperLogLog::new(4);
         assert_send(&hll);
+    }
+
+    #[test]
+    fn serde() {
+        let hasher = BuildHasherDefault::default();
+        let mut hll = HyperLogLog::with_hash(4, hasher);
+        hll.add("abc");
+        let export: HyperLogLogExport = hll.into();
+        let json = serde_json::to_string(&export).expect("can serialize to json");
+        let de_hll_export = serde_json::from_str(&json).expect("can deserialize from json");
+        let de_hll: HyperLogLog<str, _> =
+            HyperLogLog::from_exported_hyperloglog(de_hll_export, hasher);
+        assert_eq!(&hll, ede_hll);
     }
 }

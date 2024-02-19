@@ -179,9 +179,10 @@ mod tests {
     #[test]
     fn getter() {
         let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
+        let empty: Vec<u64> = vec![];
         assert_eq!(rs.k(), 10);
         assert_eq!(rs.i(), 0);
-        assert_eq!(rs.reservoir(), &vec![]);
+        assert_eq!(rs.reservoir(), &empty);
     }
 
     #[test]
