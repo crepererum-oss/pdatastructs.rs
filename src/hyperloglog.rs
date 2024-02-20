@@ -413,7 +413,9 @@ pub mod serde {
     /// using serde
     #[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
     pub struct HyperLogLogExport {
+        /// HLL Data
         pub registers: Vec<u8>,
+        /// Number of bits used for register selection
         pub b: usize,
     }
 
