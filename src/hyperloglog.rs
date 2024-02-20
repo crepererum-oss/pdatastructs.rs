@@ -413,8 +413,8 @@ pub mod serde {
     /// using serde
     #[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
     pub struct HyperLogLogExport {
-        registers: Vec<u8>,
-        b: usize,
+        pub registers: Vec<u8>,
+        pub b: usize,
     }
 
     impl<T, H> From<HyperLogLog<T, H>> for HyperLogLogExport
