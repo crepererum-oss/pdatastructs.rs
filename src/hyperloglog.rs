@@ -369,7 +369,8 @@ where
 /// use pdatastructs::hyperloglog::HyperLogLog;
 /// use pdatastructs::hyperloglog::serde::HyperLogLogExport;
 /// use serde_json;
-/// use std::hash::{BuildHasherDefault, DefaultHasher};
+/// use std::hash::BuildHasherDefault;
+/// use std::collections::hash_map::DefaultHasher;
 ///
 /// let mut hll = HyperLogLog::new(4);
 /// hll.add(&"some string");
