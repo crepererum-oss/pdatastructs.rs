@@ -22,7 +22,7 @@ fixedbitset = { version = "0.4", optional = true }
 num-traits = { version = "^0.2.4", optional = true }
 rand = { version = "0.8", optional = true }
 succinct = { version = "^0.5", optional = true }
-serde = { version = "1.0", features = ["derive"], optional = true }
+serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"

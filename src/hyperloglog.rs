@@ -449,8 +449,8 @@ pub mod serde {
             {
                 fn new() -> Self {
                     Self {
-                        _t: PhantomData::default(),
-                        _b: PhantomData::default(),
+                        _t: PhantomData,
+                        _b: PhantomData,
                     }
                 }
             }
@@ -503,11 +503,11 @@ pub mod serde {
                         registers,
                         b,
                         buildhasher,
-                        phantom: PhantomData::default(),
+                        phantom: PhantomData,
                     })
                 }
             }
-            const FIELDS: &'static [&'static str] = &["registers", "b", "buildhasher"];
+            const FIELDS: &[&str] = &["registers", "b", "buildhasher"];
             deserializer.deserialize_struct(
                 "HyperLogLog",
                 FIELDS,
