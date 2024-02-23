@@ -44,9 +44,6 @@ mod helpers;
 #[cfg(feature = "bytecount")]
 pub mod hyperloglog;
 
-#[cfg(feature = "bytecount")]
-mod hyperloglog_data;
-
 #[cfg(feature = "rand")]
 pub mod reservoirsampling;
 
