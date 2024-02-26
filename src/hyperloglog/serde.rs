@@ -167,9 +167,9 @@ mod tests {
             }
         }
         impl BuildHasher for MyHasher {
-            type Hasher = MyHasher;
+            type Hasher = Self;
             fn build_hasher(&self) -> Self::Hasher {
-                MyHasher { state: 4 }
+                Self { state: 4 }
             }
         }
         let hasher = MyHasher { state: 4 };
