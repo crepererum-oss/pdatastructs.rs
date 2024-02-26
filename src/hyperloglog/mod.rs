@@ -149,8 +149,8 @@ where
     /// Get register data
     /// This is useful if you need to persist or serialize the structure using something else than
     /// Serde
-    pub fn registers(&self) -> Vec<u8> {
-        self.registers.clone()
+    pub fn registers(&self) -> &[u8] {
+        &self.registers
     }
 
     /// Get `BuildHasher`.
