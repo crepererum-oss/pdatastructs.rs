@@ -120,6 +120,13 @@ where
 {
     /// Same as `new` but with a specific `BuildHasher`.
     pub fn with_hash(b: usize, buildhasher: B) -> Self {
+        let m = 1_usize << b;
+        let registers = vec![0; m];
+        Self::with_registers_and_hash(b, registers, buildhasher)
+    }
+
+    /// Same as `new` but with pre-initialized registers and a specific `BuildHasher`.
+    pub fn with_registers_and_hash(b: usize, registers: Vec<u8>, buildhasher: B) -> Self {
         assert!(
             (4..=18).contains(&b),
             "b ({}) must be larger or equal than 4 and smaller or equal than 18",
@@ -127,7 +134,13 @@ where
         );
 
         let m = 1_usize << b;
-        let registers = vec![0; m];
+        let len = registers.len();
+        assert!(
+            m == len,
+            "registers must have length of {}, but had {}",
+            m,
+            len
+        );
         Self {
             registers,
             b,
@@ -736,5 +749,28 @@ mod tests {
     fn send() {
         let hll: HyperLogLog<NotSend> = HyperLogLog::new(4);
         assert_send(&hll);
+    }
+
+    #[test]
+    fn reconstruct() {
+        let h = BuildHasherSeeded::new(0);
+        let b = 4;
+        let mut hll = HyperLogLog::with_hash(b, h);
+        hll.add("abc");
+
+        let hll2 = HyperLogLog::with_registers_and_hash(b, hll.registers().to_vec(), h);
+        assert_eq!(hll, hll2);
+    }
+
+    #[test]
+    #[should_panic(expected = "registers must have length of 16, but had 0")]
+    fn reconstruct_panics() {
+        let h = BuildHasherSeeded::new(0);
+        let b = 4;
+        let mut hll = HyperLogLog::with_hash(b, h);
+        hll.add("abc");
+
+        let hll2 = HyperLogLog::with_registers_and_hash(b, vec![], h);
+        assert_eq!(hll, hll2);
     }
 }
