@@ -2,13 +2,19 @@
 use std::cmp;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
-use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 use std::marker::PhantomData;
 
-use crate::hyperloglog_data::{
+use crate::hyperloglog::data::{
     BIAS_DATA_OFFSET, BIAS_DATA_VEC, POW2MINX, RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC,
     THRESHOLD_DATA_OFFSET, THRESHOLD_DATA_VEC,
 };
+
+mod data;
+
+/// Serde support for `pdatastructs::hyperloglog::HyperLogLog`
+#[cfg(feature = "serde")]
+pub mod serde;
 
 /// A HyperLogLog is a data structure to count unique elements on a data stream.
 ///
@@ -79,7 +85,7 @@ use crate::hyperloglog_data::{
 /// - ["Appendix to HyperLogLog in Practice: Algorithmic Engineering of a State of the Art
 ///   Cardinality Estimation Algorithm", Stefan Heule, Marc Nunkesser, Alexander Hall, 2016](https://goo.gl/iU8Ig)
 /// - [Wikipedia: HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog)
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct HyperLogLog<T, B = BuildHasherDefault<DefaultHasher>>
 where
     T: Hash + ?Sized,
@@ -114,6 +120,13 @@ where
 {
     /// Same as `new` but with a specific `BuildHasher`.
     pub fn with_hash(b: usize, buildhasher: B) -> Self {
+        let m = 1_usize << b;
+        let registers = vec![0; m];
+        Self::with_registers_and_hash(b, registers, buildhasher)
+    }
+
+    /// Same as `new` but with pre-initialized registers and a specific `BuildHasher`.
+    pub fn with_registers_and_hash(b: usize, registers: Vec<u8>, buildhasher: B) -> Self {
         assert!(
             (4..=18).contains(&b),
             "b ({}) must be larger or equal than 4 and smaller or equal than 18",
@@ -121,7 +134,13 @@ where
         );
 
         let m = 1_usize << b;
-        let registers = vec![0; m];
+        let len = registers.len();
+        assert!(
+            m == len,
+            "registers must have length of {}, but had {}",
+            m,
+            len
+        );
         Self {
             registers,
             b,
@@ -140,6 +159,13 @@ where
         self.registers.len()
     }
 
+    /// Get register data
+    /// This is useful if you need to persist or serialize the structure using something else than
+    /// Serde
+    pub fn registers(&self) -> &[u8] {
+        &self.registers
+    }
+
     /// Get `BuildHasher`.
     pub fn buildhasher(&self) -> &B {
         &self.buildhasher
@@ -152,15 +178,18 @@ where
 
     /// Adds an element to the HyperLogLog.
     pub fn add(&mut self, obj: &T) {
-        let mut hasher = self.buildhasher.build_hasher();
-        obj.hash(&mut hasher);
-        let h: u64 = hasher.finish();
+        self.add_hashed(self.buildhasher.hash_one(obj));
+    }
 
-        // split h into:
+    /// Adds an already-hashed element to the HyperLogLog
+    ///
+    /// Note: Make sure to use the same hasher as the rest of the HyperLogLog when hashing values on your own
+    pub fn add_hashed(&mut self, hashed_value: u64) {
+        // split hashed_value into:
         //  - w = 64 - b upper bits
         //  - j = b lower bits
-        let w = h >> self.b;
-        let j = h - (w << self.b); // no 1 as in the paper since register indices are 0-based
+        let w = hashed_value >> self.b;
+        let j = hashed_value - (w << self.b); // no 1 as in the paper since register indices are 0-based
 
         // p = leftmost bit (1-based count)
         let p = w.leading_zeros() + 1 - (self.b as u32);
@@ -328,9 +357,10 @@ where
     }
 }
 
-impl<T> fmt::Debug for HyperLogLog<T>
+impl<T, B> fmt::Debug for HyperLogLog<T, B>
 where
     T: Hash + ?Sized,
+    B: BuildHasher + Clone + Eq,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "HyperLogLog {{ b: {} }}", self.b)
@@ -363,7 +393,7 @@ where
 mod tests {
     use super::HyperLogLog;
     use crate::hash_utils::BuildHasherSeeded;
-    use crate::hyperloglog_data::{RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC};
+    use crate::hyperloglog::data::{RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC};
     use crate::test_util::{assert_send, NotSend};
 
     #[test]
@@ -719,5 +749,28 @@ mod tests {
     fn send() {
         let hll: HyperLogLog<NotSend> = HyperLogLog::new(4);
         assert_send(&hll);
+    }
+
+    #[test]
+    fn reconstruct() {
+        let h = BuildHasherSeeded::new(0);
+        let b = 4;
+        let mut hll = HyperLogLog::with_hash(b, h);
+        hll.add("abc");
+
+        let hll2 = HyperLogLog::with_registers_and_hash(b, hll.registers().to_vec(), h);
+        assert_eq!(hll, hll2);
+    }
+
+    #[test]
+    #[should_panic(expected = "registers must have length of 16, but had 0")]
+    fn reconstruct_panics() {
+        let h = BuildHasherSeeded::new(0);
+        let b = 4;
+        let mut hll = HyperLogLog::with_hash(b, h);
+        hll.add("abc");
+
+        let hll2 = HyperLogLog::with_registers_and_hash(b, vec![], h);
+        assert_eq!(hll, hll2);
     }
 }

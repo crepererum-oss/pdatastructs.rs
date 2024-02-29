@@ -281,7 +281,7 @@ impl Hash for AnyHash {
 mod tests {
     use super::{BuildHasherSeeded, HashIterBuilder};
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+    use std::hash::{BuildHasher, BuildHasherDefault};
 
     #[test]
     fn hash_iter_builder_getter() {
@@ -347,18 +347,11 @@ mod tests {
         let bh2 = BuildHasherSeeded::new(0);
         let bh3 = BuildHasherSeeded::new(1);
 
-        let mut hasher1 = bh1.build_hasher();
-        let mut hasher2 = bh2.build_hasher();
-        let mut hasher3 = bh3.build_hasher();
-
         let obj = "foo bar";
-        obj.hash(&mut hasher1);
-        obj.hash(&mut hasher2);
-        obj.hash(&mut hasher3);
 
-        let result1 = hasher1.finish();
-        let result2 = hasher2.finish();
-        let result3 = hasher3.finish();
+        let result1 = bh1.hash_one(obj);
+        let result2 = bh2.hash_one(obj);
+        let result3 = bh3.hash_one(obj);
 
         assert_eq!(result1, result2);
         assert_ne!(result1, result3);
