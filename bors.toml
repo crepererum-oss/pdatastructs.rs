@@ -1,6 +1,0 @@
-status = [
-  "check (stable)",
-  "check (beta)",
-]
-
-delete_merged_branches = true

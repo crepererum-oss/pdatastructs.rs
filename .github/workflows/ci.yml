@@ -2,12 +2,11 @@ name: CI
 
 
 on:
+  merge_group:
   pull_request:
   push:
     branches:
-      - master
-      - staging
-      - trying
+      - main
     tags:
       - v*
 
