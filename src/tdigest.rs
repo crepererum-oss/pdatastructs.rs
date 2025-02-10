@@ -85,7 +85,7 @@ impl ScaleFunction for K0 {
     }
 
     fn f(&self, q: f64, _n: usize) -> f64 {
-        let q = q.min(1.).max(0.);
+        let q = q.clamp(0., 1.);
         self.delta / 2. * q
     }
 
@@ -143,7 +143,7 @@ impl ScaleFunction for K1 {
     }
 
     fn f(&self, q: f64, _n: usize) -> f64 {
-        let q = q.min(1.).max(0.);
+        let q = q.clamp(0., 1.);
         self.delta / (2. * f64::consts::PI) * (2. * q - 1.).asin()
     }
 
@@ -210,7 +210,7 @@ impl ScaleFunction for K2 {
     }
 
     fn f(&self, q: f64, n: usize) -> f64 {
-        let q = q.min(1.).max(0.);
+        let q = q.clamp(0., 1.);
         self.x(n) * (q / (1. - q)).ln()
     }
 
@@ -283,7 +283,7 @@ impl ScaleFunction for K3 {
     }
 
     fn f(&self, q: f64, n: usize) -> f64 {
-        let q = q.min(1.).max(0.);
+        let q = q.clamp(0., 1.);
         let y = if q <= 0.5 {
             (2. * q).ln()
         } else {

@@ -7,7 +7,6 @@
     clippy::future_not_send,
     clippy::use_self,
     dead_code,
-    illegal_floating_point_literal_pattern,
     missing_copy_implementations,
     missing_debug_implementations,
     missing_docs,
