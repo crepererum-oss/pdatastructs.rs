@@ -22,7 +22,7 @@ use std::fmt;
 /// }
 ///
 /// // later
-/// assert_eq!(sampler.reservoir().iter().sum::<i64>(), 5);
+/// assert_eq!(sampler.reservoir().iter().sum::<i64>(), 4);
 /// ```
 ///
 /// # Applications
