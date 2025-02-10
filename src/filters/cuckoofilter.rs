@@ -386,7 +386,7 @@ where
 
         // don't produce 0, since this is used as "free"-slot value
         let x_mod = if self.l_fingerprint == 64 {
-            u64::max_value()
+            u64::MAX
         } else {
             (1u64 << self.l_fingerprint) - 1
         };
@@ -452,10 +452,10 @@ where
         }
 
         // cannot write to obvious buckets => relocate
-        let mut i = if self.rng.gen::<bool>() { i1 } else { i2 };
+        let mut i = if self.rng.random::<bool>() { i1 } else { i2 };
 
         for _ in 0..MAX_NUM_KICKS {
-            let e: usize = self.rng.gen_range(0..self.bucketsize);
+            let e: usize = self.rng.random_range(0..self.bucketsize);
             let offset = i * self.bucketsize;
             let x = offset + e;
 
@@ -662,7 +662,7 @@ mod tests {
     fn new_panics_table_size_overflow_1() {
         CuckooFilter::<u64, ChaChaRng>::with_params(
             ChaChaRng::from_seed([0; 32]),
-            usize::max_value(),
+            usize::MAX,
             2,
             2,
         );
@@ -674,7 +674,7 @@ mod tests {
         CuckooFilter::<u64, ChaChaRng>::with_params(
             ChaChaRng::from_seed([0; 32]),
             2,
-            (((usize::max_value() as u128) + 1) / 2) as usize,
+            (((usize::MAX as u128) + 1) / 2) as usize,
             2,
         );
     }
@@ -685,7 +685,7 @@ mod tests {
         CuckooFilter::<u64, ChaChaRng>::with_params(
             ChaChaRng::from_seed([0; 32]),
             2,
-            (((usize::max_value() as u128) + 1) / 8) as usize,
+            (((usize::MAX as u128) + 1) / 8) as usize,
             64,
         );
     }
