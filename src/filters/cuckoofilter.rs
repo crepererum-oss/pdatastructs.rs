@@ -674,7 +674,7 @@ mod tests {
         CuckooFilter::<u64, ChaChaRng>::with_params(
             ChaChaRng::from_seed([0; 32]),
             2,
-            (((usize::MAX as u128) + 1) / 2) as usize,
+            (usize::MAX as u128).div_ceil(2) as usize,
             2,
         );
     }
