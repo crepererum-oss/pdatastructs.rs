@@ -5,7 +5,7 @@ use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::marker::PhantomData;
 
 use rand::Rng;
-use succinct::{IntVec, IntVecMut, IntVector};
+use succinct::{BitVec, BitVecMut, IntVec, IntVecMut, IntVector};
 
 use crate::filters::Filter;
 use crate::helpers::all_zero_intvector;
@@ -186,6 +186,36 @@ where
         Self::with_params_and_hash(rng, bucketsize, n_buckets, l_fingerprint, bh)
     }
 
+    /// Create CuckooFilter with existing filter table data:
+    ///
+    /// - `rng`: random number generator used for certain random actions
+    /// - `bucketsize`: number of elements per bucket, must be at least 2
+    /// - `n_buckets`: number of buckets, must be a power of 2 and at least 2
+    /// - `l_fingerprint`: size of the fingerprint in bits
+    /// - `n_elements`: number of elements in existing filter
+    /// - `table_succinct_blocks`: filter table block data
+    ///
+    /// The BuildHasher is set to the `DefaultHasher`.
+    pub fn with_existing_filter<I: IntoIterator<Item = u64>>(
+        rng: R,
+        bucketsize: usize,
+        n_buckets: usize,
+        l_fingerprint: usize,
+        n_elements: usize,
+        table_succinct_blocks: I,
+    ) -> Self {
+        let bh = BuildHasherDefault::<DefaultHasher>::default();
+        Self::with_existing_filter_and_hash(
+            rng,
+            bucketsize,
+            n_buckets,
+            l_fingerprint,
+            n_elements,
+            table_succinct_blocks,
+            bh,
+        )
+    }
+
     /// Construct new `bucketsize=4`-cuckoofilter with properties:
     ///
     /// - `false_positive_rate`: false positive lookup rate
@@ -258,6 +288,28 @@ where
             rng,
             phantom: PhantomData,
         }
+    }
+
+    /// Same as `with_existing_filter` but with specific `BuildHasher`.
+    pub fn with_existing_filter_and_hash<I: IntoIterator<Item = u64>>(
+        rng: R,
+        bucketsize: usize,
+        n_buckets: usize,
+        l_fingerprint: usize,
+        n_elements: usize,
+        table_succinct_blocks: I,
+        bh: B,
+    ) -> Self {
+        let mut filter = Self::with_params_and_hash(rng, bucketsize, n_buckets, l_fingerprint, bh);
+        for (i, block) in table_succinct_blocks.into_iter().enumerate() {
+            assert!(
+                i < filter.table.block_len(),
+                "existing input table block length must not exceed filter table block length"
+            );
+            filter.table.set_block(i, block);
+        }
+        filter.n_elements = n_elements;
+        filter
     }
 
     /// Construct new `bucketsize=4`-cuckoofilter with properties:
@@ -480,6 +532,35 @@ where
         for (pos, data) in log.iter().rev().cloned() {
             self.table.set(pos as u64, data);
         }
+    }
+
+    /// Clear and load filter table with individual filter table elements
+    /// and existing element count.
+    pub fn load_table<I: IntoIterator<Item = u64>>(&mut self, table: I, n_elements: usize) {
+        self.clear();
+        for (i, value) in table.into_iter().enumerate() {
+            let i = i as u64;
+            assert!(
+                i < self.table.len(),
+                "input table length must not exceed filter table length"
+            );
+            self.table.set(i, value);
+        }
+        self.n_elements = n_elements;
+    }
+
+    /// Return the individual filter table elements.
+    pub fn table(&self) -> Vec<u64> {
+        self.table.iter().collect()
+    }
+
+    /// Return the filter table succinct block data.
+    pub fn table_succinct_blocks(&self) -> Vec<u64> {
+        let mut result = Vec::with_capacity(self.table.block_len());
+        for i in 0..self.table.block_len() {
+            result.push(self.table.get_block(i));
+        }
+        result
     }
 }
 
@@ -948,5 +1029,43 @@ mod tests {
     fn send() {
         let cf = CuckooFilter::<NotSend, _>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         assert_send(&cf);
+    }
+
+    #[test]
+    fn succinct_table_save_load() {
+        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        assert!(cf.insert(&10).unwrap());
+        assert!(cf.insert(&51).unwrap());
+        assert_eq!(cf.len(), 2);
+
+        let loaded_cf = CuckooFilter::with_existing_filter(
+            ChaChaRng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+            cf.len(),
+            cf.table_succinct_blocks(),
+        );
+
+        assert!(loaded_cf.query(&10));
+        assert!(loaded_cf.query(&51));
+        assert!(!loaded_cf.query(&33));
+        assert_eq!(loaded_cf.len(), 2);
+    }
+
+    #[test]
+    fn table_save_load() {
+        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        assert!(cf.insert(&10).unwrap());
+        assert!(cf.insert(&51).unwrap());
+        assert_eq!(cf.len(), 2);
+
+        let mut loaded_cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        loaded_cf.load_table(cf.table(), cf.len());
+
+        assert!(loaded_cf.query(&10));
+        assert!(loaded_cf.query(&51));
+        assert!(!loaded_cf.query(&33));
+        assert_eq!(loaded_cf.len(), 2);
     }
 }
