@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use std::mem;
 
-use succinct::storage::BlockType;
 use succinct::IntVector;
+use succinct::storage::BlockType;
 
 /// Our own version of `num_traits::Zero` so we don't need to depend on it just for the two types.
 pub(crate) trait NumZero {
@@ -34,11 +34,7 @@ where
             .expect("Table size too large");
         let blocks = bits / element_bits;
         let res = bits % element_bits;
-        if res != 0 {
-            blocks + 1
-        } else {
-            blocks
-        }
+        if res != 0 { blocks + 1 } else { blocks }
     };
     IntVector::block_with_fill(element_bits, n_blocks, T::create_zero())
 }

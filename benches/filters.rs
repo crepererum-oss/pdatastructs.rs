@@ -5,10 +5,10 @@ extern crate pdatastructs;
 use std::collections::HashSet;
 
 use criterion::{Bencher, BenchmarkId, Criterion};
+use pdatastructs::filters::Filter;
 use pdatastructs::filters::bloomfilter::BloomFilter;
 use pdatastructs::filters::cuckoofilter::CuckooFilter;
 use pdatastructs::filters::quotientfilter::QuotientFilter;
-use pdatastructs::filters::Filter;
 use pdatastructs::rand::SeedableRng;
 use rand_chacha::ChaChaRng;
 

@@ -322,7 +322,7 @@ mod tests {
     use super::CountMinSketch;
     use crate::{
         hash_utils::BuildHasherSeeded,
-        test_util::{assert_send, NotSend},
+        test_util::{NotSend, assert_send},
     };
 
     #[test]

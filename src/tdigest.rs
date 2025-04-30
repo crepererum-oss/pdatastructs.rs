@@ -213,11 +213,7 @@ impl ScaleFunction for K2 {
 
     fn f_inv(&self, k: f64, n: usize) -> f64 {
         if k.is_infinite() {
-            if k > 0. {
-                1.
-            } else {
-                0.
-            }
+            if k > 0. { 1. } else { 0. }
         } else {
             let z = self.z(k, n);
             z / (z + 1.)
@@ -290,11 +286,7 @@ impl ScaleFunction for K3 {
 
     fn f_inv(&self, k: f64, n: usize) -> f64 {
         if k.is_infinite() {
-            if k > 0. {
-                1.
-            } else {
-                0.
-            }
+            if k > 0. { 1. } else { 0. }
         } else {
             let x = self.x(n);
             if k <= 0. {
@@ -926,7 +918,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{ScaleFunction, TDigest, K0, K1, K2, K3};
+    use super::{K0, K1, K2, K3, ScaleFunction, TDigest};
     use rand::{Rng, SeedableRng};
     use rand_chacha::ChaChaRng;
     use rand_distr::StandardNormal;

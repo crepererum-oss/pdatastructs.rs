@@ -339,7 +339,7 @@ mod tests {
 
     use crate::filters::Filter;
     use crate::hash_utils::BuildHasherSeeded;
-    use crate::test_util::{assert_send, NotSend};
+    use crate::test_util::{NotSend, assert_send};
 
     #[test]
     fn getter() {
