@@ -597,7 +597,7 @@ mod tests {
     use crate::{
         filters::Filter,
         hash_utils::BuildHasherSeeded,
-        test_util::{assert_send, NotSend},
+        test_util::{NotSend, assert_send},
     };
     use rand::SeedableRng;
     use rand_chacha::ChaChaRng;

@@ -388,7 +388,7 @@ mod tests {
     use super::HyperLogLog;
     use crate::hash_utils::BuildHasherSeeded;
     use crate::hyperloglog::data::{RAW_ESTIMATE_DATA_OFFSET, RAW_ESTIMATE_DATA_VEC};
-    use crate::test_util::{assert_send, NotSend};
+    use crate::test_util::{NotSend, assert_send};
 
     #[test]
     #[should_panic(expected = "b (3) must be larger or equal than 4 and smaller or equal than 18")]

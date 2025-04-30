@@ -14,7 +14,7 @@ description = "Simple probabilistic data structures"
 repository = "https://github.com/crepererum/pdatastructs.rs"
 documentation = "https://docs.rs/pdatastructs/"
 readme = "README.md"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 bytecount = { version = "0.6", features = ["runtime-dispatch-simd"], optional = true }

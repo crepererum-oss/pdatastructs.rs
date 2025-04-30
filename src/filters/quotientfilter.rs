@@ -1,6 +1,6 @@
 //! QuotientFilter implementation.
-use std::collections::hash_map::DefaultHasher;
 use std::collections::VecDeque;
+use std::collections::hash_map::DefaultHasher;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 use std::marker::PhantomData;
 
@@ -624,7 +624,7 @@ mod tests {
     use super::QuotientFilter;
     use crate::filters::Filter;
     use crate::hash_utils::BuildHasherSeeded;
-    use crate::test_util::{assert_send, NotSend};
+    use crate::test_util::{NotSend, assert_send};
 
     #[test]
     #[should_panic(expected = "bits_quotient (0) must be greater than 0")]
