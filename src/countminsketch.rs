@@ -197,8 +197,7 @@ where
         assert!(epsilon > 0., "epsilon must be greater than 0");
         assert!(
             (delta > 0.) & (delta < 1.),
-            "delta ({}) must be greater than 0 and smaller than 1",
-            delta
+            "delta ({delta}) must be greater than 0 and smaller than 1",
         );
 
         let w = (f64::consts::E / epsilon).ceil() as usize;
@@ -501,7 +500,7 @@ mod tests {
     #[test]
     fn debug() {
         let cms = CountMinSketch::<u64>::with_params(10, 20);
-        assert_eq!(format!("{:?}", cms), "CountMinSketch { w: 10, d: 20 }");
+        assert_eq!(format!("{cms:?}"), "CountMinSketch { w: 10, d: 20 }");
     }
 
     #[test]

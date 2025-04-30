@@ -72,8 +72,7 @@ impl K0 {
     pub fn new(delta: f64) -> Self {
         assert!(
             (delta > 1.) && delta.is_finite(),
-            "delta ({}) must be greater than 1 and finite",
-            delta
+            "delta ({delta}) must be greater than 1 and finite",
         );
         Self { delta }
     }
@@ -130,8 +129,7 @@ impl K1 {
     pub fn new(delta: f64) -> Self {
         assert!(
             (delta > 1.) && delta.is_finite(),
-            "delta ({}) must be greater than 1 and finite",
-            delta
+            "delta ({delta}) must be greater than 1 and finite",
         );
         Self { delta }
     }
@@ -189,8 +187,7 @@ impl K2 {
     pub fn new(delta: f64) -> Self {
         assert!(
             (delta > 1.) && delta.is_finite(),
-            "delta ({}) must be greater than 1 and finite",
-            delta
+            "delta ({delta}) must be greater than 1 and finite",
         );
         Self { delta }
     }
@@ -266,8 +263,7 @@ impl K3 {
     pub fn new(delta: f64) -> Self {
         assert!(
             (delta > 1.) && delta.is_finite(),
-            "delta ({}) must be greater than 1 and finite",
-            delta
+            "delta ({delta}) must be greater than 1 and finite",
         );
         Self { delta }
     }
@@ -830,11 +826,10 @@ where
     ///
     /// Panics if the element is not finite or if the weight is negative.
     pub fn insert_weighted(&mut self, x: f64, w: f64) {
-        assert!(x.is_finite(), "x ({}) must be finite", x);
+        assert!(x.is_finite(), "x ({x}) must be finite");
         assert!(
             (w >= 0.) && w.is_finite(),
-            "w ({}) must be greater or equal than zero and finite",
-            w
+            "w ({w}) must be greater or equal than zero and finite",
         );
 
         // early return for zero-weight
@@ -853,7 +848,7 @@ where
     ///
     /// Panics if the quantile is not in range `[0, 1]`.
     pub fn quantile(&self, q: f64) -> f64 {
-        assert!((0. ..=1.).contains(&q), "q ({}) must be in [0, 1]", q);
+        assert!((0. ..=1.).contains(&q), "q ({q}) must be in [0, 1]");
 
         // apply compression if required
         self.inner.borrow_mut().merge();

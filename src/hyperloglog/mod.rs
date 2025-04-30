@@ -129,18 +129,12 @@ where
     pub fn with_registers_and_hash(b: usize, registers: Vec<u8>, buildhasher: B) -> Self {
         assert!(
             (4..=18).contains(&b),
-            "b ({}) must be larger or equal than 4 and smaller or equal than 18",
-            b
+            "b ({b}) must be larger or equal than 4 and smaller or equal than 18",
         );
 
         let m = 1_usize << b;
         let len = registers.len();
-        assert!(
-            m == len,
-            "registers must have length of {}, but had {}",
-            m,
-            len
-        );
+        assert!(m == len, "registers must have length of {m}, but had {len}",);
         Self {
             registers,
             b,
@@ -599,7 +593,7 @@ mod tests {
     #[test]
     fn debug() {
         let hll = HyperLogLog::<u64>::new(12);
-        assert_eq!(format!("{:?}", hll), "HyperLogLog { b: 12 }");
+        assert_eq!(format!("{hll:?}"), "HyperLogLog { b: 12 }");
     }
 
     #[test]
