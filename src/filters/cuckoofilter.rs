@@ -230,18 +230,15 @@ where
     ) -> Self {
         assert!(
             bucketsize >= 2,
-            "bucketsize ({}) must be greater or equal than 2",
-            bucketsize
+            "bucketsize ({bucketsize}) must be greater or equal than 2",
         );
         assert!(
             n_buckets.is_power_of_two() & (n_buckets >= 2),
-            "n_buckets ({}) must be a power of 2 and greater or equal than 2",
-            n_buckets
+            "n_buckets ({n_buckets}) must be a power of 2 and greater or equal than 2",
         );
         assert!(
             (l_fingerprint > 1) & (l_fingerprint <= 64),
-            "l_fingerprint ({}) must be greater than 1 and less or equal than 64",
-            l_fingerprint
+            "l_fingerprint ({l_fingerprint}) must be greater than 1 and less or equal than 64",
         );
 
         let table_size = n_buckets
@@ -320,13 +317,11 @@ where
     ) -> Self {
         assert!(
             expected_elements >= 1,
-            "expected_elements ({}) must be at least 1",
-            expected_elements
+            "expected_elements ({expected_elements}) must be at least 1",
         );
         assert!(
             (false_positive_rate > 0.) && (false_positive_rate < 1.),
-            "false_positive_rate ({}) must be greater than 0 and smaller than 1",
-            false_positive_rate
+            "false_positive_rate ({false_positive_rate}) must be greater than 0 and smaller than 1",
         );
 
         let l_fingerprint = (2.0 * (bucketsize as f64) / false_positive_rate)
@@ -772,7 +767,7 @@ mod tests {
         let cf =
             CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
         assert_eq!(
-            format!("{:?}", cf),
+            format!("{cf:?}"),
             "CuckooFilter { bucketsize: 2, n_buckets: 16 }"
         );
     }

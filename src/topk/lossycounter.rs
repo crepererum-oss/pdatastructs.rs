@@ -179,8 +179,7 @@ where
     pub fn with_epsilon(epsilon: f64) -> Self {
         assert!(
             (epsilon > 0.) & (epsilon < 1.),
-            "epsilon ({}) must be greater than 0 and smaller than 1",
-            epsilon
+            "epsilon ({epsilon}) must be greater than 0 and smaller than 1",
         );
 
         Self {
@@ -193,7 +192,7 @@ where
 
     /// Creates new lossy counter width given window width.
     pub fn with_width(width: usize) -> Self {
-        assert!(width > 0, "width must be greater than 0");
+        assert!(width > 0, "width ({width}) must be greater than 0");
 
         Self {
             epsilon: (1. / (width as f64)),
@@ -313,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "width must be greater than 0")]
+    #[should_panic(expected = "width (0) must be greater than 0")]
     fn new_panics_width_0() {
         LossyCounter::<u64>::with_width(0);
     }

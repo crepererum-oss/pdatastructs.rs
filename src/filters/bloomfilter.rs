@@ -212,8 +212,7 @@ where
         assert!(n > 0, "n must be greater than 0");
         assert!(
             (p > 0.) & (p < 1.),
-            "p ({}) must be greater than 0 and smaller than 1",
-            p
+            "p ({p}) must be greater than 0 and smaller than 1",
         );
 
         let k = (-p.log2()) as usize;
@@ -502,7 +501,7 @@ mod tests {
     #[test]
     fn debug() {
         let bf = BloomFilter::<u64>::with_params(100, 2);
-        assert_eq!(format!("{:?}", bf), "BloomFilter { m: 100, k: 2 }");
+        assert_eq!(format!("{bf:?}"), "BloomFilter { m: 100, k: 2 }");
     }
 
     #[test]

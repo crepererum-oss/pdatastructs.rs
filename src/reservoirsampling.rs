@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn debug() {
         let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
-        assert_eq!(format!("{:?}", rs), "ReservoirSampling { k: 10 }");
+        assert_eq!(format!("{rs:?}"), "ReservoirSampling { k: 10 }");
     }
 
     #[test]

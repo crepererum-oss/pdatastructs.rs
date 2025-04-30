@@ -305,20 +305,16 @@ where
     ) -> Self {
         assert!(
             (bits_remainder > 0) && (bits_remainder <= (usize::BITS as usize)),
-            "bits_remainder ({}) must be greater than 0 and smaller or equal than {}",
-            bits_remainder,
+            "bits_remainder ({bits_remainder}) must be greater than 0 and smaller or equal than {}",
             usize::BITS,
         );
         assert!(
             bits_quotient > 0,
-            "bits_quotient ({}) must be greater than 0",
-            bits_quotient,
+            "bits_quotient ({bits_quotient}) must be greater than 0",
         );
         assert!(
             bits_remainder + bits_quotient <= 64,
-            "bits_remainder ({}) + bits_quotient ({}) must be smaller or equal than 64",
-            bits_remainder,
-            bits_quotient,
+            "bits_remainder ({bits_remainder}) + bits_quotient ({bits_quotient}) must be smaller or equal than 64",
         );
 
         let len = 1 << bits_quotient;
@@ -717,7 +713,7 @@ mod tests {
         for i in 0..8 {
             qf.insert(&i).unwrap();
             for j in 0..i {
-                assert!(qf.query(&j), "Cannot find {} after inserting {}", j, i);
+                assert!(qf.query(&j), "Cannot find {j} after inserting {i}");
             }
         }
         assert!(qf.insert(&1000).is_err());

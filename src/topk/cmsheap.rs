@@ -360,7 +360,7 @@ mod tests {
     fn debug() {
         let cms = CountMinSketch::with_params(10, 20);
         let tk: CMSHeap<usize> = CMSHeap::new(2, cms);
-        assert_eq!(format!("{:?}", tk), "CMSHeap { k: 2 }");
+        assert_eq!(format!("{tk:?}"), "CMSHeap { k: 2 }");
     }
 
     #[test]
