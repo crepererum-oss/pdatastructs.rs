@@ -61,6 +61,7 @@ jobs:
 
       - name: cargo clippy
         run: cargo clippy --all-features --all-targets --workspace -- -D warnings
+        if: ${{ matrix.rust == 'stable' }}
 
       - name: cargo test
         run: cargo test --all-features --workspace
