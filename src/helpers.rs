@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use std::mem;
 
 use succinct::IntVector;
 use succinct::storage::BlockType;
