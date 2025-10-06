@@ -224,7 +224,7 @@ where
         // pre-inc, since "N denotes the current length of the stream"
         self.n += 1;
 
-        let at_window_end = self.n % self.width == 0;
+        let at_window_end = self.n.is_multiple_of(self.width);
         let b_current = self.n / self.width + if at_window_end { 0 } else { 1 };
 
         // add new data
