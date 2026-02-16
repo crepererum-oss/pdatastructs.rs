@@ -497,9 +497,9 @@ where
 /// # Examples
 /// ```
 /// use pdatastructs::tdigest::{K1, TDigest};
-/// use rand::{Rng, SeedableRng};
+/// use chacha20::ChaCha20Rng;
+/// use rand::{RngExt, SeedableRng};
 /// use rand_distr::StandardNormal;
-/// use rand_chacha::ChaChaRng;
 ///
 /// // Set up moderately compressed digest
 /// let compression_factor = 100.;
@@ -508,7 +508,7 @@ where
 /// let mut digest = TDigest::new(scale_function, max_backlog_size);
 ///
 /// // sample data from normal distribution
-/// let mut rng = ChaChaRng::from_seed([0; 32]);
+/// let mut rng = ChaCha20Rng::from_seed([0; 32]);
 /// let n = 100_000;
 /// for _ in 0..n {
 ///     let x = rng.sample(StandardNormal);
@@ -919,8 +919,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::{K0, K1, K2, K3, ScaleFunction, TDigest};
-    use rand::{Rng, SeedableRng};
-    use rand_chacha::ChaChaRng;
+    use chacha20::ChaCha20Rng;
+    use rand::{RngExt, SeedableRng};
     use rand_distr::StandardNormal;
     use std::f64;
 
@@ -1339,7 +1339,7 @@ mod tests {
         let scale_function = K1::new(delta);
         let mut digest = TDigest::new(scale_function, max_backlog_size);
 
-        let mut rng = ChaChaRng::from_seed([0; 32]);
+        let mut rng = ChaCha20Rng::from_seed([0; 32]);
 
         let n = 100_000;
         let mut s = 0.;
@@ -1668,7 +1668,7 @@ mod tests {
         let scale_function = K1::new(delta);
         let mut digest = TDigest::new(scale_function, max_backlog_size);
 
-        let mut rng = ChaChaRng::from_seed([0; 32]);
+        let mut rng = ChaCha20Rng::from_seed([0; 32]);
 
         let n = 10_000;
         for _ in 0..n {
