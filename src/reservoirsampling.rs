@@ -1,5 +1,5 @@
 //! ReservoirSampling implementation.
-use rand::Rng;
+use rand::{Rng, RngExt};
 use std::fmt;
 
 /// A ReservoirSampling is a data-structure that samples a fixed number of elements from a data
@@ -9,10 +9,10 @@ use std::fmt;
 /// ```
 /// use pdatastructs::reservoirsampling::ReservoirSampling;
 /// use pdatastructs::rand::SeedableRng;
-/// use rand_chacha::ChaChaRng;
+/// use chacha20::ChaCha20Rng;
 ///
 /// // set up sampler for 10 elements
-/// let rng = ChaChaRng::from_seed([0; 32]);
+/// let rng = ChaCha20Rng::from_seed([0; 32]);
 /// let mut sampler = ReservoirSampling::new(10, rng);
 ///
 /// // add some data
@@ -166,19 +166,21 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::CloneableChacha20Rng;
+
     use super::ReservoirSampling;
+    use chacha20::ChaCha20Rng;
     use rand::SeedableRng;
-    use rand_chacha::ChaChaRng;
 
     #[test]
     #[should_panic(expected = "k must be greater than 0")]
     fn new_panics_k0() {
-        ReservoirSampling::<u64, ChaChaRng>::new(0, ChaChaRng::from_seed([0; 32]));
+        ReservoirSampling::<u64, ChaCha20Rng>::new(0, ChaCha20Rng::from_seed([0; 32]));
     }
 
     #[test]
     fn getter() {
-        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
+        let rs = ReservoirSampling::<u64, ChaCha20Rng>::new(10, ChaCha20Rng::from_seed([0; 32]));
         let empty: Vec<u64> = vec![];
         assert_eq!(rs.k(), 10);
         assert_eq!(rs.i(), 0);
@@ -187,14 +189,15 @@ mod tests {
 
     #[test]
     fn empty() {
-        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
+        let rs = ReservoirSampling::<u64, ChaCha20Rng>::new(10, ChaCha20Rng::from_seed([0; 32]));
         assert!(rs.is_empty());
         assert!(rs.reservoir().is_empty());
     }
 
     #[test]
     fn add_k() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
+        let mut rs =
+            ReservoirSampling::<u64, ChaCha20Rng>::new(10, ChaCha20Rng::from_seed([0; 32]));
         for i in 0..10 {
             rs.add(i);
         }
@@ -204,7 +207,8 @@ mod tests {
 
     #[test]
     fn add_parts() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(100, ChaChaRng::from_seed([0; 32]));
+        let mut rs =
+            ReservoirSampling::<u64, ChaCha20Rng>::new(100, ChaCha20Rng::from_seed([0; 32]));
         for _ in 0..1500 {
             rs.add(0);
         }
@@ -219,13 +223,14 @@ mod tests {
 
     #[test]
     fn debug() {
-        let rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
+        let rs = ReservoirSampling::<u64, ChaCha20Rng>::new(10, ChaCha20Rng::from_seed([0; 32]));
         assert_eq!(format!("{rs:?}"), "ReservoirSampling { k: 10 }");
     }
 
     #[test]
     fn clear() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
+        let mut rs =
+            ReservoirSampling::<u64, ChaCha20Rng>::new(10, ChaCha20Rng::from_seed([0; 32]));
         for i in 0..10 {
             rs.add(i);
         }
@@ -242,7 +247,8 @@ mod tests {
 
     #[test]
     fn extend() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
+        let mut rs =
+            ReservoirSampling::<u64, ChaCha20Rng>::new(10, ChaCha20Rng::from_seed([0; 32]));
         rs.extend(0..10);
         assert_eq!(rs.i(), 10);
         assert_eq!(rs.reservoir(), &vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -250,7 +256,10 @@ mod tests {
 
     #[test]
     fn clone() {
-        let mut rs1 = ReservoirSampling::<u64, ChaChaRng>::new(10, ChaChaRng::from_seed([0; 32]));
+        let mut rs1 = ReservoirSampling::<u64, CloneableChacha20Rng>::new(
+            10,
+            CloneableChacha20Rng::from_seed([0; 32]),
+        );
         for i in 0..10 {
             rs1.add(i);
         }
@@ -269,7 +278,7 @@ mod tests {
 
     #[test]
     fn k1() {
-        let mut rs = ReservoirSampling::<u64, ChaChaRng>::new(1, ChaChaRng::from_seed([0; 32]));
+        let mut rs = ReservoirSampling::<u64, ChaCha20Rng>::new(1, ChaCha20Rng::from_seed([0; 32]));
         for _ in 0..10 {
             rs.add(1);
         }

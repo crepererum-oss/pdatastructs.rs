@@ -4,7 +4,7 @@ use std::fmt;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::marker::PhantomData;
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 use succinct::{IntVec, IntVecMut, IntVector};
 
 use crate::filters::Filter;
@@ -26,12 +26,12 @@ pub struct CuckooFilterFull;
 /// use pdatastructs::filters::Filter;
 /// use pdatastructs::filters::cuckoofilter::CuckooFilter;
 /// use pdatastructs::rand::SeedableRng;
-/// use rand_chacha::ChaChaRng;
+/// use chacha20::ChaCha20Rng;
 ///
 /// // set up filter
 /// let false_positive_rate = 0.02;  // = 2%
 /// let expected_elements = 1000;
-/// let rng = ChaChaRng::from_seed([0; 32]);
+/// let rng = ChaCha20Rng::from_seed([0; 32]);
 /// let mut filter = CuckooFilter::with_properties_8(false_positive_rate, expected_elements, rng);
 ///
 /// // add some data
@@ -48,12 +48,12 @@ pub struct CuckooFilterFull;
 /// use pdatastructs::filters::Filter;
 /// use pdatastructs::filters::cuckoofilter::CuckooFilter;
 /// use pdatastructs::rand::SeedableRng;
-/// use rand_chacha::ChaChaRng;
+/// use chacha20::ChaCha20Rng;
 ///
 /// // set up filter
 /// let false_positive_rate = 0.02;  // = 2%
 /// let expected_elements = 1000;
-/// let rng = ChaChaRng::from_seed([0; 32]);
+/// let rng = ChaCha20Rng::from_seed([0; 32]);
 /// let mut filter1 = CuckooFilter::<u8, _>::with_properties_8(false_positive_rate, expected_elements, rng);
 /// let filter2 = CuckooFilter::<i8, _>::with_properties_8(false_positive_rate, expected_elements, rng);
 ///
@@ -597,51 +597,51 @@ mod tests {
     use crate::{
         filters::Filter,
         hash_utils::BuildHasherSeeded,
-        test_util::{NotSend, assert_send},
+        test_util::{CloneableChacha20Rng, NotSend, assert_send},
     };
+    use chacha20::ChaCha20Rng;
     use rand::SeedableRng;
-    use rand_chacha::ChaChaRng;
 
     #[test]
     #[should_panic(expected = "bucketsize (0) must be greater or equal than 2")]
     fn new_panics_bucketsize_0() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 0, 16, 8);
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(ChaCha20Rng::from_seed([0; 32]), 0, 16, 8);
     }
 
     #[test]
     #[should_panic(expected = "bucketsize (1) must be greater or equal than 2")]
     fn new_panics_bucketsize_1() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 1, 16, 8);
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(ChaCha20Rng::from_seed([0; 32]), 1, 16, 8);
     }
 
     #[test]
     #[should_panic(expected = "n_buckets (0) must be a power of 2 and greater or equal than 2")]
     fn new_panics_n_buckets_0() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 0, 8);
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 0, 8);
     }
 
     #[test]
     #[should_panic(expected = "n_buckets (1) must be a power of 2 and greater or equal than 2")]
     fn new_panics_n_buckets_1() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 1, 8);
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 1, 8);
     }
 
     #[test]
     #[should_panic(expected = "n_buckets (5) must be a power of 2 and greater or equal than 2")]
     fn new_panics_n_buckets_5() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 5, 8);
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 5, 8);
     }
 
     #[test]
     #[should_panic(expected = "l_fingerprint (0) must be greater than 1 and less or equal than 64")]
     fn new_panics_l_fingerprint_0() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 0);
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 0);
     }
 
     #[test]
     #[should_panic(expected = "l_fingerprint (1) must be greater than 1 and less or equal than 64")]
     fn new_panics_l_fingerprint_1() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 1);
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 1);
     }
 
     #[test]
@@ -649,14 +649,14 @@ mod tests {
         expected = "l_fingerprint (65) must be greater than 1 and less or equal than 64"
     )]
     fn new_panics_l_fingerprint_65() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 65);
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 65);
     }
 
     #[test]
     #[should_panic(expected = "Table size too large")]
     fn new_panics_table_size_overflow_1() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(
-            ChaChaRng::from_seed([0; 32]),
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
             usize::MAX,
             2,
             2,
@@ -666,8 +666,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "Table size too large")]
     fn new_panics_table_size_overflow_2() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(
-            ChaChaRng::from_seed([0; 32]),
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
             2,
             (usize::MAX as u128).div_ceil(2) as usize,
             2,
@@ -677,8 +677,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "Table size too large")]
     fn new_panics_table_size_overflow_3() {
-        CuckooFilter::<u64, ChaChaRng>::with_params(
-            ChaChaRng::from_seed([0; 32]),
+        CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
             2,
             (((usize::MAX as u128) + 1) / 8) as usize,
             64,
@@ -687,8 +687,12 @@ mod tests {
 
     #[test]
     fn getter() {
-        let cf =
-            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf = CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
         assert_eq!(cf.bucketsize(), 2);
         assert_eq!(cf.n_buckets(), 16);
         assert_eq!(cf.l_fingerprint(), 8);
@@ -696,15 +700,19 @@ mod tests {
 
     #[test]
     fn is_empty() {
-        let cf =
-            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf = CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
         assert!(cf.is_empty());
         assert_eq!(cf.len(), 0);
     }
 
     #[test]
     fn insert() {
-        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 8);
         assert!(cf.insert(&13).unwrap());
         assert!(!cf.is_empty());
         assert_eq!(cf.len(), 1);
@@ -714,7 +722,7 @@ mod tests {
 
     #[test]
     fn double_insert() {
-        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 8);
         assert!(cf.insert(&13).unwrap());
         assert!(cf.insert(&13).unwrap());
         assert!(cf.query(&13));
@@ -722,7 +730,7 @@ mod tests {
 
     #[test]
     fn delete() {
-        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 8);
         cf.insert(&13).unwrap();
         cf.insert(&42).unwrap();
         assert!(cf.query(&13));
@@ -737,7 +745,7 @@ mod tests {
 
     #[test]
     fn clear() {
-        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 8);
 
         cf.insert(&1).unwrap();
         cf.clear();
@@ -747,7 +755,7 @@ mod tests {
 
     #[test]
     fn full() {
-        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 2, 8);
+        let mut cf = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 2, 8);
 
         for i in 0..4 {
             cf.insert(&i).unwrap();
@@ -764,8 +772,12 @@ mod tests {
 
     #[test]
     fn debug() {
-        let cf =
-            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf = CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
         assert_eq!(
             format!("{cf:?}"),
             "CuckooFilter { bucketsize: 2, n_buckets: 16 }"
@@ -774,7 +786,7 @@ mod tests {
 
     #[test]
     fn clone() {
-        let mut cf1 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf1 = CuckooFilter::with_params(CloneableChacha20Rng::from_seed([0; 32]), 2, 16, 8);
         cf1.insert(&13).unwrap();
         assert!(cf1.query(&13));
 
@@ -786,10 +798,10 @@ mod tests {
 
     #[test]
     fn with_properties_4() {
-        let cf = CuckooFilter::<u64, ChaChaRng>::with_properties_4(
+        let cf = CuckooFilter::<u64, ChaCha20Rng>::with_properties_4(
             0.02,
             1000,
-            ChaChaRng::from_seed([0; 32]),
+            ChaCha20Rng::from_seed([0; 32]),
         );
         assert_eq!(cf.bucketsize(), 4);
         assert_eq!(cf.n_buckets(), 2048);
@@ -798,10 +810,10 @@ mod tests {
 
     #[test]
     fn with_properties_8() {
-        let cf = CuckooFilter::<u64, ChaChaRng>::with_properties_8(
+        let cf = CuckooFilter::<u64, ChaCha20Rng>::with_properties_8(
             0.02,
             1000,
-            ChaChaRng::from_seed([0; 32]),
+            ChaCha20Rng::from_seed([0; 32]),
         );
         assert_eq!(cf.bucketsize(), 8);
         assert_eq!(cf.n_buckets(), 1024);
@@ -811,26 +823,42 @@ mod tests {
     #[test]
     #[should_panic(expected = "expected_elements (0) must be at least 1")]
     fn with_properties_4_panics_expected_elements_0() {
-        CuckooFilter::<u64, ChaChaRng>::with_properties_4(0.02, 0, ChaChaRng::from_seed([0; 32]));
+        CuckooFilter::<u64, ChaCha20Rng>::with_properties_4(
+            0.02,
+            0,
+            ChaCha20Rng::from_seed([0; 32]),
+        );
     }
 
     #[test]
     #[should_panic(expected = "false_positive_rate (0) must be greater than 0 and smaller than 1")]
     fn with_properties_4_panics_false_positive_rate_0() {
-        CuckooFilter::<u64, ChaChaRng>::with_properties_4(0., 1000, ChaChaRng::from_seed([0; 32]));
+        CuckooFilter::<u64, ChaCha20Rng>::with_properties_4(
+            0.,
+            1000,
+            ChaCha20Rng::from_seed([0; 32]),
+        );
     }
 
     #[test]
     #[should_panic(expected = "false_positive_rate (1) must be greater than 0 and smaller than 1")]
     fn with_properties_4_panics_false_positive_rate_1() {
-        CuckooFilter::<u64, ChaChaRng>::with_properties_4(1., 1000, ChaChaRng::from_seed([0; 32]));
+        CuckooFilter::<u64, ChaCha20Rng>::with_properties_4(
+            1.,
+            1000,
+            ChaCha20Rng::from_seed([0; 32]),
+        );
     }
 
     #[test]
     fn union() {
-        let mut cf1 =
-            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
-        let mut cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf1 = CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
+        let mut cf2 = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 8);
 
         cf1.insert(&13).unwrap();
         cf1.insert(&42).unwrap();
@@ -854,42 +882,54 @@ mod tests {
     #[test]
     #[should_panic(expected = "bucketsize must be equal (left=2, right=3)")]
     fn union_panics_bucketsize() {
-        let mut cf1 =
-            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
-        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 3, 16, 8);
+        let mut cf1 = CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
+        let cf2 = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 3, 16, 8);
         cf1.union(&cf2).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "n_buckets must be equal (left=16, right=32)")]
     fn union_panics_n_buckets() {
-        let mut cf1 =
-            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
-        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 32, 8);
+        let mut cf1 = CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
+        let cf2 = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 32, 8);
         cf1.union(&cf2).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "l_fingerprint must be equal (left=8, right=16)")]
     fn union_panics_l_fingerprint() {
-        let mut cf1 =
-            CuckooFilter::<u64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
-        let cf2 = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 16);
+        let mut cf1 = CuckooFilter::<u64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
+        let cf2 = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 16);
         cf1.union(&cf2).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "buildhasher must be equal")]
     fn union_panics_buildhasher() {
-        let mut cf1 = CuckooFilter::<u64, ChaChaRng, BuildHasherSeeded>::with_params_and_hash(
-            ChaChaRng::from_seed([0; 32]),
+        let mut cf1 = CuckooFilter::<u64, ChaCha20Rng, BuildHasherSeeded>::with_params_and_hash(
+            ChaCha20Rng::from_seed([0; 32]),
             2,
             16,
             8,
             BuildHasherSeeded::new(0),
         );
         let cf2 = CuckooFilter::with_params_and_hash(
-            ChaChaRng::from_seed([0; 32]),
+            ChaCha20Rng::from_seed([0; 32]),
             2,
             16,
             8,
@@ -900,10 +940,18 @@ mod tests {
 
     #[test]
     fn union_full() {
-        let mut cf1 =
-            CuckooFilter::<i64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
-        let mut cf2 =
-            CuckooFilter::<i64, ChaChaRng>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf1 = CuckooFilter::<i64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
+        let mut cf2 = CuckooFilter::<i64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
 
         // fill up cf1
         let mut obj = 0;
@@ -931,7 +979,7 @@ mod tests {
 
     #[test]
     fn insert_unsized() {
-        let mut cf = CuckooFilter::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let mut cf = CuckooFilter::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 8);
         assert!(cf.insert("test1").unwrap());
         assert!(!cf.is_empty());
         assert_eq!(cf.len(), 1);
@@ -941,7 +989,7 @@ mod tests {
 
     #[test]
     fn send() {
-        let cf = CuckooFilter::<NotSend, _>::with_params(ChaChaRng::from_seed([0; 32]), 2, 16, 8);
+        let cf = CuckooFilter::<NotSend, _>::with_params(ChaCha20Rng::from_seed([0; 32]), 2, 16, 8);
         assert_send(&cf);
     }
 }

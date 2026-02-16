@@ -4,13 +4,13 @@ extern crate pdatastructs;
 
 use std::collections::HashSet;
 
+use chacha20::ChaCha20Rng;
 use criterion::{Bencher, BenchmarkId, Criterion};
 use pdatastructs::filters::Filter;
 use pdatastructs::filters::bloomfilter::BloomFilter;
 use pdatastructs::filters::cuckoofilter::CuckooFilter;
 use pdatastructs::filters::quotientfilter::QuotientFilter;
 use pdatastructs::rand::SeedableRng;
-use rand_chacha::ChaChaRng;
 
 const ID_BLOOMFILTER: &str = "bloomfilter";
 const ID_CUCKOOFILTER: &str = "cuckoofilter";
@@ -23,10 +23,10 @@ fn setup_bloomfilter() -> BloomFilter<u64> {
     BloomFilter::with_properties(expected_elements, false_positive_rate)
 }
 
-fn setup_cuckoofilter() -> CuckooFilter<u64, ChaChaRng> {
+fn setup_cuckoofilter() -> CuckooFilter<u64, ChaCha20Rng> {
     let false_positive_rate = 0.02; // = 2%
     let expected_elements = 10_000;
-    let rng = ChaChaRng::from_seed([0; 32]);
+    let rng = ChaCha20Rng::from_seed([0; 32]);
     CuckooFilter::with_properties_8(false_positive_rate, expected_elements, rng)
 }
 
