@@ -1,6 +1,5 @@
 //! TDigest implementation.
 use std::cell::RefCell;
-use std::f64;
 use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
@@ -142,13 +141,13 @@ impl ScaleFunction for K1 {
 
     fn f(&self, q: f64, _n: usize) -> f64 {
         let q = q.clamp(0., 1.);
-        self.delta / (2. * f64::consts::PI) * (2. * q - 1.).asin()
+        self.delta / (2. * std::f64::consts::PI) * (2. * q - 1.).asin()
     }
 
     fn f_inv(&self, k: f64, _n: usize) -> f64 {
         let range = 0.25 * self.delta;
         let k = k.min(range).max(-range);
-        ((k * 2. * f64::consts::PI / self.delta).sin() + 1.) / 2.
+        ((k * 2. * std::f64::consts::PI / self.delta).sin() + 1.) / 2.
     }
 }
 
@@ -922,7 +921,6 @@ mod tests {
     use chacha20::ChaCha20Rng;
     use rand::{RngExt, SeedableRng};
     use rand_distr::StandardNormal;
-    use std::f64;
 
     #[test]
     #[should_panic(expected = "delta (1) must be greater than 1 and finite")]
