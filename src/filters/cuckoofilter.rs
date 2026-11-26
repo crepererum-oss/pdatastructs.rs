@@ -532,7 +532,10 @@ where
             "buildhasher must be equal",
         );
 
+        // `insert_internal` only logs relocations, not writes to free slots, so keep a full copy
+        // of the table to undo a failed union.
         let mut log: Vec<(usize, u64)> = vec![];
+        let table_backup = self.table.clone();
         let n_elements_backup = self.n_elements;
         let mut i1: usize = 0;
         for (counter, f) in other.table.iter().enumerate() {
@@ -545,7 +548,7 @@ where
             if f != 0 {
                 let i2 = i1 ^ other.hash(&f);
                 if let Err(err) = self.insert_internal(f, i1, i2, &mut log) {
-                    self.restore_state(&log);
+                    self.table = table_backup;
                     self.n_elements = n_elements_backup;
                     return Err(err);
                 }
@@ -975,6 +978,40 @@ mod tests {
         assert!(cf2.union(&cf1).is_err());
         assert_eq!(cf2.len(), n_cf2 as usize);
         assert!(!cf2.query(&1));
+    }
+
+    #[test]
+    fn union_full_restores_all_slots() {
+        let mut cf1 = CuckooFilter::<i64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
+        let mut cf2 = CuckooFilter::<i64, ChaCha20Rng>::with_params(
+            ChaCha20Rng::from_seed([0; 32]),
+            2,
+            16,
+            8,
+        );
+
+        // fill up cf1
+        let mut obj = 0;
+        while cf1.insert(&obj).is_ok() {
+            obj += 1;
+        }
+
+        // add some payload to cf2
+        for i in 0..10 {
+            cf2.insert(&-i).unwrap();
+        }
+        let before: Vec<bool> = (0..obj).map(|i| cf2.query(&i)).collect();
+
+        // union with failure, no element of cf1 may show up in cf2
+        assert!(cf2.union(&cf1).is_err());
+        let after: Vec<bool> = (0..obj).map(|i| cf2.query(&i)).collect();
+        assert_eq!(before, after);
+        assert_eq!(cf2.len(), 10);
     }
 
     #[test]
